@@ -1,0 +1,293 @@
+"use client";
+import Checkbox from "@/components/form/input/Checkbox";
+import Input from "@/components/form/input/InputField";
+import Label from "@/components/form/Label";
+import { EyeCloseIcon, EyeIcon } from "@/icons";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import React, { useState } from "react";
+import { toast, ToastContainer } from "react-toastify";
+import Select from "../form/Select";
+
+const prefix = [
+  { value: 'ไม่ระบุ', label: 'ไม่ระบุ' },
+  { value: 'นางสาว', label: 'นางสาว' },
+  { value: 'นาง', label: 'นาง' },
+  { value: 'นาย', label: 'นาย' },
+  { value: 'เด็กหญิง', label: 'เด็กหญิง' },
+  { value: 'เด็กชาย', label: 'เด็กชาย' },
+  { value: 'พระสงฆ์', label: 'พระสงฆ์' },
+  { value: 'บาทหลวง', label: 'บาทหลวง' },
+  { value: 'หม่อมหลวง', label: 'หม่อมหลวง' },
+  { value: 'หม่อมราชวงศ์', label: 'หม่อมราชวงศ์' },
+  { value: 'หม่อมเจ้า', label: 'หม่อมเจ้า' },
+  { value: 'ศาสตราจารย์เกียรติคุณ (กิตติคุณ)', label: 'ศาสตราจารย์เกียรติคุณ (กิตติคุณ)' },
+  { value: 'ศาสตราจารย์', label: 'ศาสตราจารย์' },
+  { value: 'ผู้ช่วยศาสตราจารย์', label: 'ผู้ช่วยศาสตราจารย์' },
+  { value: 'รองศาสตราจารย์', label: 'รองศาสตราจารย์' },
+  { value: 'Unspecified', label: 'Unspecified' },
+  { value: 'Miss', label: 'Miss' },
+  { value: 'Mrs.', label: 'Mrs.' },
+  { value: 'Mr.', label: 'Mr.' },
+  { value: 'Master', label: 'Master' },
+  { value: 'Buddhist Monk', label: 'Buddhist Monk' },
+  { value: 'Priest', label: 'Priest' },
+  { value: 'Mom Luang', label: 'Mom Luang' },
+  { value: 'Mom Rajawong', label: 'Mom Rajawong' },
+  { value: 'Mom Chao', label: 'Mom Chao' },
+  { value: 'Emeritus Professor', label: 'Emeritus Professor' },
+  { value: 'Professor', label: 'Professor' },
+  { value: 'Assistant Professor', label: 'Assistant Professor' },
+  { value: 'Associate Professor', label: 'Associate Professor' },
+];
+
+
+export default function SignUpForm() {
+  const [showPassword, setShowPassword] = useState(false);
+  const [usePrefix, setPrefix] = useState<string>(""); // State for prefix
+  // const [regCode, setRegCode] = useState(""); // State for regCode
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isChecked, setIsChecked] = useState(false);
+  // const [message, setMessage] = useState('');
+  // const [isValid, setIsValid] = useState<boolean | null>(null); // null: ยังไม่เช็ค
+
+  const router = useRouter();
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    if (!isChecked) {
+      toast.error("กรุณายอมรับเงื่อนไขก่อนสมัคร");
+      return;
+    }
+
+    const form = e.target as HTMLFormElement;
+    const fname = (form.elements.namedItem('fname') as HTMLInputElement).value.trim();
+    const lname = (form.elements.namedItem('lname') as HTMLInputElement).value.trim();
+    const email = (form.elements.namedItem('email') as HTMLInputElement).value.trim();
+    const phone = (form.elements.namedItem('phone') as HTMLInputElement).value.trim();
+    // const citizenId = (form.elements.namedItem('citizen_id') as HTMLInputElement).value.trim();
+    const password = (form.elements.namedItem('password') as HTMLInputElement).value;
+    const confirmPassword = (form.elements.namedItem('confirmPassword') as HTMLInputElement).value;
+
+    if (!fname || !lname || !email || !phone || !password || !confirmPassword || !usePrefix) {
+      toast.error("กรุณาระบุข้อมูลให้ครบทุกช่องที่มี *");
+      return;
+    }
+
+    if (password.length < 6) {
+      toast.error("รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast.error("รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน");
+      return;
+    }
+
+    if (!isChecked) {
+      toast.error("กรุณายอมรับเงื่อนไขก่อนสมัคร");
+      return;
+    }
+
+    const data = {
+      "co_email": email,
+      "co_password": password,
+      // "co_citizen_id": citizenId,
+      "co_tel": phone,
+      "co_prefix": usePrefix,
+      "co_fname": fname,
+      "co_lname": lname
+    };
+
+    console.log(data)
+
+
+    try {
+      // const token = '769167175e6a64fd8e8982b3381a591db1e8df29'
+      const token = process.env.NEXT_PUBLIC_TK_PUBLIC_KEY;
+      if (!token) {
+        toast.error('Token is missing. Please check your environment variables.');
+        return;
+      }
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(data)
+      });
+
+      const result = await res.json();
+      if (result.status === true) {
+        // toast.info('กรุณารอระบุ OTP จากระบบ');
+        localStorage.setItem('co_email',email)
+        localStorage.setItem('co_tel',phone)
+        localStorage.setItem('otp_key',result.data.otp_key)
+        router.push('/ai/verify-otp');
+      } else {
+        toast.error(result.message || 'เกิดข้อผิดพลาด');
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error('เกิดข้อผิดพลาด');
+    }
+  };
+  
+
+  return (
+    <div className="flex flex-col p-6 flex-1 lg:w-1/2 w-full overflow-y-auto no-scrollbar">
+
+      <div className="flex flex-col justify-center flex-1 w-full max-w-md mx-auto">
+        <div>
+          <div className="mb-5 sm:mb-8">
+            <h1 className="mb-2 font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md">
+              สมัครสมาชิก
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              ระบุข้อมูลเพื่อสร้างบัญชีใหม่
+            </p>
+          </div>
+          <div>
+            <form onSubmit={handleSubmit}>
+              <div className="space-y-5">
+                {/* ชื่อ-นามสกุล */}
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+                  <div>
+                    <Label>คำนำหน้าชื่อ <span className="text-error-500 ">*</span></Label>
+                    <Select options={prefix} onChange={setPrefix} placeholder="เลือกคำนำหน้าชื่อ" />
+                  </div>
+                  <div>
+                    <Label>ชื่อ <span className="text-error-500">*</span></Label>
+                    <Input type="text" name="fname" placeholder="ระบุชื่อ" />
+                  </div>
+                  <div>
+                    <Label>นามสกุล <span className="text-error-500">*</span></Label>
+                    <Input type="text" name="lname" placeholder="ระบุนามสกุล" />
+                  </div>
+                </div>
+
+                {/* อีเมล */}
+                <div>
+                  <Label>อีเมล <span className="text-error-500">*</span></Label>
+                  <Input type="email" name="email" placeholder="ระบุอีเมล" />
+                </div>
+
+                {/* เบอร์โทรศัพท์ */}
+                <div>
+                  <Label>เบอร์โทรศัพท์ <span className="text-error-500">*</span></Label>
+                  <Input type="tel" name="phone" placeholder="0xxxxxxxxx" />
+                </div>
+                
+                {/* รหัสผ่าน */}
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  <div>
+                    <Label>รหัสผ่าน <span className="text-error-500">*</span></Label>
+                    <div className="relative">
+                      <Input
+                        type={showPassword ? "text" : "password"}
+                        name="password"
+                        placeholder="ระบุรหัสผ่าน"
+                      />
+                      <span
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute z-30 -translate-y-1/2 cursor-pointer right-4 top-1/2"
+                      >
+                        {showPassword ? <EyeIcon /> : <EyeCloseIcon />}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>ยืนยันรหัสผ่าน <span className="text-error-500">*</span></Label>
+                    <div className="relative">
+                      <Input
+                        type={showConfirmPassword ? "text" : "password"}
+                        name="confirmPassword"
+                        placeholder="พิมพ์รหัสผ่านอีกครั้ง"
+                      />
+                      <span
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute z-30 -translate-y-1/2 cursor-pointer right-4 top-1/2"
+                      >
+                        {showConfirmPassword ? <EyeIcon /> : <EyeCloseIcon />}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Checkbox */}
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    className="mt-1 w-5 h-5"
+                    checked={isChecked}
+                    onChange={setIsChecked}
+                  />
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    การสร้างบัญชีแสดงว่าคุณยอมรับ{' '}
+                    <span className="text-brand-500 hover:text-brand-600 dark:text-white/90 font-medium"><Link href="">ข้อตกลงการใช้บริการ</Link></span> และ{' '}
+                    <span className="text-brand-500 hover:text-brand-600 dark:text-white/90 font-medium"><Link href="" >นโยบายความเป็นส่วนตัว</Link></span> ของเรา
+                  </p>
+                </div>
+
+                {/* ปุ่มสมัคร */}
+                <div>
+                  <button
+                    type="submit"
+                    className="w-full px-4 py-3 text-sm font-medium text-white transition rounded-lg bg-brand-500 shadow-theme-xs hover:bg-brand-600"
+                  >
+                    สมัครสมาชิก
+                  </button>
+                </div>
+              </div>
+            </form>
+
+            <div>
+              <div className="mt-4 text-center text-sm text-gray-700 dark:text-gray-400">
+                มีบัญชีอยู่แล้วใช่ไหม?
+                <Link
+                  href="/ai/login"
+                  className="ml-1 font-medium text-brand-500 hover:text-brand-600 dark:text-brand-400"
+                >
+                  เข้าสู่ระบบ
+                </Link>
+              </div>
+            </div>
+            {/* <div className="relative py-4 .sm:py-5">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200 dark:border-gray-800"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="p-2 text-gray-400 bg-white dark:bg-gray-900 sm:px-5 sm:py-2">
+                  Or
+                </span>
+              </div>
+            </div>
+            <button className="w-full inline-flex items-center justify-center gap-3 py-1.5 px-7 text-[14px] .font-bold text-white transition bg-[#06C755] hover:bg-[#06C755]/90 active:bg-[#06C755]/70 rounded-lg">
+              <Image
+                width={32}
+                height={32}
+                src="/images/logo/line_64.png"
+                alt="LINE"
+              />
+              เข้าสู่ระบบด้วย LINE
+            </button> */}
+          </div>
+        </div>
+      </div>
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        style={{ zIndex: 99999 }}
+      />
+    </div>
+  );
+}
