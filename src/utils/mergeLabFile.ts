@@ -611,9 +611,25 @@ export class PDFMerger {
             mergedPdf.setCreationDate(new Date());
 
             // Generate final PDF
-            const mergedPdfBytes = await mergedPdf.save();
-            const blob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
+            // const mergedPdfBytes = await mergedPdf.save();
+            // const blob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
+            // const url = URL.createObjectURL(blob);
+
+            // Generate final PDF
+            const mergedPdfBytes = await mergedPdf.save(); // ได้ Uint8Array จาก pdf-lib
+
+            // แปลง Uint8Array → ArrayBuffer ให้เข้ากับ BlobPart
+            const arrayBuffer = mergedPdfBytes.buffer.slice(
+            mergedPdfBytes.byteOffset,
+            mergedPdfBytes.byteOffset + mergedPdfBytes.byteLength
+            );
+
+            // สร้าง Blob จาก ArrayBuffer
+            const blob = new Blob([arrayBuffer as ArrayBuffer], { type: 'application/pdf' });
+
+            // สร้าง URL สำหรับเปิดไฟล์ PDF
             const url = URL.createObjectURL(blob);
+
 
             let s3Url: string | undefined;
             let s3Key: string | undefined;
