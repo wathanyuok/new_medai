@@ -757,7 +757,7 @@ export default function MultiPDFMergePage(queue_id: any) {
               </button>
 
               {/* Mobile: ปุ่มเปิดแท็บใหม่ (Desktop ไม่เปลี่ยนพฤติกรรม) */}
-              {isMobile && previewUrl && (
+              {/* {isMobile && previewUrl && (
                 <a
                   href={previewUrl}
                   target="_blank"
@@ -768,7 +768,7 @@ export default function MultiPDFMergePage(queue_id: any) {
                   <span className="hidden xs:inline">เปิดใน Tab ใหม่</span>
                   <span className="xs:hidden">Download2</span>
                 </a>
-              )}
+              )} */}
 
               {/* ปุ่ม “ดู Lab Report เท่านั้น” ยังคงไว้ เผื่อใช้งาน manual */}
               <button
@@ -784,7 +784,7 @@ export default function MultiPDFMergePage(queue_id: any) {
           </div>
 
           {/* Mobile คำแนะนำ (Desktop ไม่เปลี่ยน) */}
-          {isMobile && (
+          {/* {isMobile && (
             <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
               <div className="flex items-start space-x-2">
                 <span className="text-amber-500 text-lg">⚠️</span>
@@ -797,7 +797,7 @@ export default function MultiPDFMergePage(queue_id: any) {
                 </div>
               </div>
             </div>
-          )}
+          )} */}
 
           {/* PDF Viewer */}
           <div className="border border-gray-200 sm:border-2 rounded-lg overflow-hidden">
