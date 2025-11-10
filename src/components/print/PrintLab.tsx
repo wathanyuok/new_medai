@@ -513,7 +513,7 @@ const openPdfSafe = (pdfUrl: string) => {
 
       setPreviewUrl(url);
        if (isMobile) {
-  openPdfSafe(url);
+       window.location.href = url;   // เปิดในแท็บปัจจุบัน ไม่โดนบล็อก
                 return;
             }
       setShowPreview(true);
@@ -735,7 +735,7 @@ const url = URL.createObjectURL(blob);
 
       setPreviewUrl(url);
       if (isMobile) {
-                  openPdfSafe(url);
+      window.location.href = url;   // เปิดในแท็บปัจจุบัน ไม่โดนบล็อก
 
                 return;
             }
@@ -824,16 +824,18 @@ const url = URL.createObjectURL(blob);
               </button>
 
               {/* Mobile: Open in New Tab Button */}
-{isMobile && (
-  <button
-    onClick={() => openPdfSafe(previewUrl!)}
-    className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-purple-600 text-white text-sm sm:text-base rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors"
-  >
-    <span className="inline-block mr-1">🔗</span>
-    <span className="hidden xs:inline">เปิดใน Tab ใหม่</span>
-    <span className="xs:hidden">Download</span>
-  </button>
-)}
+              {isMobile && previewUrl && (
+              <a
+              href={previewUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full sm:w-auto inline-block text-center px-3 sm:px-4 py-2 bg-purple-600 text-white text-sm sm:text-base rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors"
+              >
+              <span className="inline-block mr-1">🔗</span>
+                  <span className="hidden xs:inline">เปิดใน Tab ใหม่</span>
+                  <span className="xs:hidden">Download</span>
+                </a>
+              )}
 
 
               {/* <button
