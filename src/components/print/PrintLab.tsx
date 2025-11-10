@@ -784,7 +784,7 @@ export default function MultiPDFMergePage(queue_id: any) {
           </div>
 
           {/* Mobile คำแนะนำ (Desktop ไม่เปลี่ยน) */}
-          {isMobile && (
+          {/* {isMobile && (
             <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
               <div className="flex items-start space-x-2">
                 <span className="text-amber-500 text-lg">⚠️</span>
@@ -797,7 +797,7 @@ export default function MultiPDFMergePage(queue_id: any) {
                 </div>
               </div>
             </div>
-          )}
+          )} */}
 
 {/* PDF Viewer */}
 {/* <div className="border border-gray-200 sm:border-2 rounded-lg overflow-hidden"> */}
