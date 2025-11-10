@@ -800,7 +800,7 @@ export default function MultiPDFMergePage(queue_id: any) {
           )}
 
 {/* PDF Viewer */}
-<div className="border border-gray-200 sm:border-2 rounded-lg overflow-hidden">
+{/* <div className="border border-gray-200 sm:border-2 rounded-lg overflow-hidden"> */}
 
   {/* 🔴 ส่วนนี้คือ mobile viewer เดิม (มีพื้นหลังเทาและปุ่มเปิด)
       ถ้าไม่ต้องการให้แสดง — คอมเมนต์ออกทั้งบล็อกนี้ */}
@@ -835,7 +835,7 @@ export default function MultiPDFMergePage(queue_id: any) {
     title="PDF Preview"
   />
   {/* ) */}
-</div>
+{/* </div> */}
 
 
           {/* Instructions */}
