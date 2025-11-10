@@ -31,14 +31,16 @@ export default function MultiPDFMergePage(queue_id: any) {
 
 
 const openPdfSafe = (pdfUrl: string) => {
-  const newTab = window.open('', '_blank', 'noopener,noreferrer');
-  if (!newTab) {
-    alert('เบราว์เซอร์บล็อก Pop-up กรุณาอนุญาตให้เว็บไซต์เปิดหน้าต่างใหม่');
-    return;
-  }
-  newTab.document.write('<p style="font-family:sans-serif;padding:20px">กำลังโหลดผลตรวจ...</p>');
-  newTab.location.href = pdfUrl;
+  const a = document.createElement('a');
+  a.href = pdfUrl;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 };
+
 
 
 
