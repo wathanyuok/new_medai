@@ -784,7 +784,7 @@ export default function MultiPDFMergePage(queue_id: any) {
           </div>
 
           {/* Mobile คำแนะนำ (Desktop ไม่เปลี่ยน) */}
-          {/* {isMobile && (
+          {isMobile && (
             <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
               <div className="flex items-start space-x-2">
                 <span className="text-amber-500 text-lg">⚠️</span>
@@ -797,35 +797,46 @@ export default function MultiPDFMergePage(queue_id: any) {
                 </div>
               </div>
             </div>
-          )} */}
+          )}
 
-          {/* PDF Viewer */}
-          <div className="border border-gray-200 sm:border-2 rounded-lg overflow-hidden">
-            {isMobile ? (
-              <div className="relative">
-                <object
-                  data={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1`}
-                  type="application/pdf"
-                  width="100%"
-                  height="100%"
-                >
-                  <iframe src={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1`} width="100%" height="100%">
-                    This browser does not support PDFs. Please download the PDF to view it:
-                    <a href={previewUrl}>Download PDF</a>
-                  </iframe>
-                </object>
-              </div>
-            ) : (
-              // Desktop: Standard iframe — คงเหมือนเดิมทุกอย่าง
-              <iframe
-                src={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1&zoom=page-fit`}
-                width="100%"
-                height="100%"
-                className="border-0 sm:h-[600px] md:h-[700px] lg:h-[800px]"
-                title="PDF Preview"
-              />
-            )}
-          </div>
+{/* PDF Viewer */}
+<div className="border border-gray-200 sm:border-2 rounded-lg overflow-hidden">
+
+  {/* 🔴 ส่วนนี้คือ mobile viewer เดิม (มีพื้นหลังเทาและปุ่มเปิด)
+      ถ้าไม่ต้องการให้แสดง — คอมเมนต์ออกทั้งบล็อกนี้ */}
+  {/*
+  {isMobile ? (
+    <div className="relative">
+      <object
+        data={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1`}
+        type="application/pdf"
+        width="100%"
+        height="100%"
+      >
+        <iframe
+          src={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1`}
+          width="100%"
+          height="100%"
+        >
+          This browser does not support PDFs. Please download the PDF to view it:
+          <a href={previewUrl}>Download PDF</a>
+        </iframe>
+      </object>
+    </div>
+  ) : (
+  */}
+  
+  {/* ✅ ใช้ iframe แบบเดียวกันสำหรับทุกอุปกรณ์ */}
+  <iframe
+    src={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1&zoom=page-fit`}
+    width="100%"
+    height="100%"
+    className="border-0 sm:h-[600px] md:h-[700px] lg:h-[800px]"
+    title="PDF Preview"
+  />
+  {/* ) */}
+</div>
+
 
           {/* Instructions */}
           <div className="mt-3 p-2 sm:p-3 bg-gray-50 rounded text-xs sm:text-sm text-gray-600">
