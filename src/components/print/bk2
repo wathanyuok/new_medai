@@ -15,7 +15,7 @@ export default function MultiPDFMergePage(queue_id: any) {
   const [s3Urls, setS3Urls] = useState<string[]>([]);
   const [status, setStatus] = useState('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [showPreview, setShowPreview] = useState(false);
+  const [showPreview, setShowPreview] = useState(true);
   const [currentStep, setCurrentStep] = useState('');
   const [progress, setProgress] = useState(0);
   const [printData, setPrintData] = useState<any>({});
@@ -30,6 +30,18 @@ export default function MultiPDFMergePage(queue_id: any) {
 
 
 
+const openPdfSafe = (pdfUrl: string) => {
+  const a = document.createElement('a');
+  a.href = pdfUrl;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+};
+
+
 
 
   // Cleanup function เมื่อ component unmount
@@ -40,15 +52,9 @@ export default function MultiPDFMergePage(queue_id: any) {
       }
     };
   }, []);
-
   useEffect(() => {
     setIsMobile(isMobileDevice());
   }, []);
-
- useEffect(() => {
-  setShowPreview(!isMobile);
-}, [isMobile]);
-  
 
   useEffect(() => {
     const queueId = parseInt(queue_id.queue_id);
@@ -509,7 +515,7 @@ export default function MultiPDFMergePage(queue_id: any) {
 
       setPreviewUrl(url);
        if (isMobile) {
-  window.location.href = `${url}#toolbar=1&navpanes=1&scrollbar=1`;
+       window.location.href = url;   // เปิดในแท็บปัจจุบัน ไม่โดนบล็อก
                 return;
             }
       setShowPreview(true);
@@ -731,7 +737,7 @@ const url = URL.createObjectURL(blob);
 
       setPreviewUrl(url);
       if (isMobile) {
-  window.location.href = `${url}#toolbar=1&navpanes=1&scrollbar=1`;
+      window.location.href = url;   // เปิดในแท็บปัจจุบัน ไม่โดนบล็อก
 
                 return;
             }
@@ -803,7 +809,7 @@ const url = URL.createObjectURL(blob);
 
 
       {/* PDF Preview Section */}
-{!isMobile && showPreview && previewUrl && (
+      {showPreview && previewUrl && (
         <div className="bg-white shadow-lg rounded-lg p-3 sm:p-6 mt-6">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 space-y-3 sm:space-y-0">
             <h2 className="text-lg sm:text-xl font-bold text-gray-800 text-center sm:text-left">
@@ -843,7 +849,6 @@ const url = URL.createObjectURL(blob);
                 <span className="xs:hidden">Close</span>
               </button> */}
 
-              {!isMobile && (
               <button
                 onClick={previewJsPDFOnly}
                 disabled={loading || !printData || Object.keys(printData).length === 0}
@@ -853,12 +858,10 @@ const url = URL.createObjectURL(blob);
                 <span className="hidden xs:inline">ดู Lab Report เท่านั้น</span>
                 <span className="xs:hidden">Lab Only</span>
               </button>
-              )}
-
             </div>
           </div>
 
-          {/* Mobile Warning
+          {/* Mobile Warning */}
           {isMobile && (
             <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
               <div className="flex items-start space-x-2">
@@ -873,7 +876,7 @@ const url = URL.createObjectURL(blob);
                 </div>
               </div>
             </div>
-          )} */}
+          )}
 
           {/* PDF Viewer */}
           <div className="border border-gray-200 sm:border-2 rounded-lg overflow-hidden">
