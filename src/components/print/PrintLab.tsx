@@ -21,6 +21,10 @@ export default function MultiPDFMergePage(queue_id: any) {
   const [dataLoaded, setDataLoaded] = useState(false);
   const [autoProcessed, setAutoProcessed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const isMobileDevice = () => {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
@@ -799,41 +803,30 @@ export default function MultiPDFMergePage(queue_id: any) {
             </div>
           )} */}
 
-{/* PDF Viewer */}
-{/* <div className="border border-gray-200 sm:border-2 rounded-lg overflow-hidden"> */}
+{/* PDF Viewer (แสดงเฉพาะ Desktop) */}
+<div className="border border-gray-200 sm:border-2 rounded-lg overflow-hidden">
+  {/* มือถือ: ไม่เรนเดอร์ viewer เพื่อหลีกเลี่ยงปุ่ม "เปิด" ของเบราว์เซอร์ */}
+  {/* Desktop: แสดง iframe ตามเดิม */}
+  {mounted && !isMobile && (
+    <iframe
+      src={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1&zoom=page-fit`}
+      width="100%"
+      height="100%"
+      className="border-0 sm:h-[600px] md:h-[700px] lg:h-[800px]"
+      title="PDF Preview"
+    />
+  )}
+</div>
 
-  {/* 🔴 ส่วนนี้คือ mobile viewer เดิม (มีพื้นหลังเทาและปุ่มเปิด)
-      ถ้าไม่ต้องการให้แสดง — คอมเมนต์ออกทั้งบล็อกนี้ */}
-  {/*
-  {isMobile ? (
-    <div className="relative">
-      <object
-        data={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1`}
-        type="application/pdf"
-        width="100%"
-        height="100%"
-      >
-        <iframe
-          src={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1`}
-          width="100%"
-          height="100%"
-        >
-          This browser does not support PDFs. Please download the PDF to view it:
-          <a href={previewUrl}>Download PDF</a>
-        </iframe>
-      </object>
-    </div>
-  ) : (
-  */}
   
   {/* ✅ ใช้ iframe แบบเดียวกันสำหรับทุกอุปกรณ์ */}
-  <iframe
+  {/* <iframe
     src={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1&zoom=page-fit`}
     width="100%"
     height="100%"
     className="border-0 sm:h-[600px] md:h-[700px] lg:h-[800px]"
     title="PDF Preview"
-  />
+  /> */}
   {/* ) */}
 {/* </div> */}
 
