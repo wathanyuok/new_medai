@@ -413,16 +413,27 @@ export default function ClaudeForm() {
     toast.warn("⛔️ หยุดการตอบกลับแล้ว", { position: "top-right", autoClose: 1000 });
   };
 
-  const [showExtendedMessage, setShowExtendedMessage] = useState(false);
-  useEffect(() => {
-    let timer: NodeJS.Timeout | null = null;
-    if (isThinking && streamingText.trim() === "") {
-      timer = setTimeout(() => setShowExtendedMessage(true), 4000);
-    } else {
-      setShowExtendedMessage(false);
+
+const [showExtendedMessage, setShowExtendedMessage] = useState(false);
+
+useEffect(() => {
+  // ใช้ชนิดที่ปลอดภัยทั้ง Node/Dom
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  if (isThinking && streamingText.trim() === "") {
+    timer = setTimeout(() => setShowExtendedMessage(true), 4000);
+  } else {
+    setShowExtendedMessage(false);
+  }
+
+  // cleanup ต้องคืนค่า void เสมอ
+  return () => {
+    if (timer !== null) {
+      clearTimeout(timer);
     }
-    return () => timer && clearTimeout(timer);
-  }, [isThinking, streamingText]);
+  };
+}, [isThinking, streamingText]);
+
 
   const shouldShowQuestions = () => {
     return !greetings.includes(input.trim().toLowerCase()) && followupQuestions.length > 0 && isAtBottom;
