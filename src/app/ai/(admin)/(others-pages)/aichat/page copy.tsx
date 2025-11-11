@@ -110,15 +110,22 @@ export default function ClaudeForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (file.length === 0 && !input.trim()) return;
+
+    // ✅ ใช้ไฟล์จาก state ถ้ามี ไม่งั้นสำรองจาก input ทันที (กัน state ยังไม่ทันรอบแรก)
+    const selectedFiles: File[] =
+      file.length > 0
+        ? file
+        : Array.from(fileInputRef.current?.files ?? []);
+
+    if (selectedFiles.length === 0 && !input.trim()) return;
 
     // อย่าเคลียร์ input/files ตรงนี้ (จะย้ายไปตอนจบ)
     setIsLoading(true);
     setFollowupQuestions([]);
     setIsThinking(true);
 
-    const attachedFilesText = file.length > 0
-      ? '\n\n📎 แนบไฟล์: ' + file.map(f => f.name).join(', ')
+    const attachedFilesText = selectedFiles.length > 0
+      ? '\n\n📎 แนบไฟล์: ' + selectedFiles.map(f => f.name).join(', ')
       : '';
 
     // 1) เตรียม userMessage ล่าสุด
@@ -144,18 +151,19 @@ export default function ClaudeForm() {
     const history = [...previousMessages, userMessage];
 
     controllerRef.current = new AbortController();
-    const endpoint = file.length > 0 ? '/api/chatStreamFile' : '/api/chatStreamText';
+    // ✅ ตัดสินใจ endpoint จาก selectedFiles ไม่พึ่ง state โดยตรง
+    const endpoint = selectedFiles.length > 0 ? '/api/chatStreamFile' : '/api/chatStreamText';
 
     let response: Response;
 
-    if (file.length > 0) {
+    if (selectedFiles.length > 0) {
       // 4) สร้าง payload ไฟล์ให้เสร็จก่อน แล้วค่อยส่ง
-      const fileArray = await Promise.all(file.map(async (file) => {
-        const arrayBuffer = await file.arrayBuffer();
+      const fileArray = await Promise.all(selectedFiles.map(async (f) => {
+        const arrayBuffer = await f.arrayBuffer();
         return {
           base64Data: Buffer.from(arrayBuffer).toString('base64'),
-          mimeType: file.type,
-          fileName: file.name,
+          mimeType: f.type,
+          fileName: f.name,
         };
       }));
 
