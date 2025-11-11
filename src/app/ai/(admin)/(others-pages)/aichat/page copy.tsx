@@ -43,7 +43,7 @@ export default function ClaudeForm() {
     const droppedFiles = Array.from(e.dataTransfer.files);
     setFiles(prev => [...prev, ...droppedFiles]);
   };
-  console.log('', error, previewUrl)
+
   useEffect(() => {
     const raw = localStorage.getItem("aichat-input");
     if (raw) {
@@ -52,14 +52,12 @@ export default function ClaudeForm() {
       localStorage.removeItem("aichat-input");
     }
   }, []);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const selectedFile = e.target.files[0];
 
-      if (
-        !selectedFile.type.startsWith("image/") &&
-        selectedFile.type !== "application/pdf"
-      ) {
+      if (!selectedFile.type.startsWith("image/") && selectedFile.type !== "application/pdf") {
         setError("โปรดอัปโหลดไฟล์ PDF หรือรูปภาพเท่านั้น");
         toast.error(
           `Error: ${selectedFile.name} is not a valid file. Please upload a PDF or an image.`,
@@ -87,41 +85,34 @@ export default function ClaudeForm() {
         draggable: true,
         progress: undefined,
         theme: "light",
-        style: {
-          zIndex: 99999,
-        },
+        style: { zIndex: 99999 },
       });
 
       setFiles((prev) => [...prev, selectedFile])
       setError(null);
     }
-    // const filePdfName = e.target.files && e.target.files[0];
-    // const fileName = filePdfName ? filePdfName.name : '';
-    // return fileName;
   };
-  useEffect(() => {
-    //ENV file verison
-    const apiKeyENV = process.env.ANTHROPIC_API_KEY!;
 
-    // console.log('Using env file apiKey:', apiKeyENV);
+  useEffect(() => {
+    const apiKeyENV = process.env.ANTHROPIC_API_KEY!;
     if (apiKey === undefined || null) {
       setApiKey(apiKeyENV)
     }
   }, [apiKey])
+
   const handleRemoveFile = () => {
     setFiles([]);
     setPreviewUrl(null);
     if (fileInputRef.current) {
-      fileInputRef.current.value = ''; // Clear the file input value
+      fileInputRef.current.value = '';
     }
   }
 
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file && !input.trim()) return;
-    setInput('');
-    setFiles([]);
+    if (file.length === 0 && !input.trim()) return;
+
+    // อย่าเคลียร์ input/files ตรงนี้ (จะย้ายไปตอนจบ)
     setIsLoading(true);
     setFollowupQuestions([]);
     setIsThinking(true);
@@ -130,10 +121,13 @@ export default function ClaudeForm() {
       ? '\n\n📎 แนบไฟล์: ' + file.map(f => f.name).join(', ')
       : '';
 
+    // 1) เตรียม userMessage ล่าสุด
     const userMessage = {
       role: 'user' as const,
       content: input + attachedFilesText,
     };
+
+    // 2) อัปเดต UI ให้เห็นข้อความผู้ใช้ + สร้าง placeholder ให้ assistant
     setMessages((prev) => {
       const greetings = ["สวัสดี", "hello", "hi", "hey"];
       if (greetings.includes(input.trim().toLowerCase())) {
@@ -142,17 +136,20 @@ export default function ClaudeForm() {
       return [...prev, userMessage, { role: 'assistant', content: '' }];
     });
 
-    controllerRef.current = new AbortController();
+    // 3) สร้าง history ที่ "รวม" userMessage ล่าสุดเข้าไปด้วย (สำคัญ)
     const previousMessages = messages.map(m => ({
       role: m.role,
       content: m.content,
     }));
+    const history = [...previousMessages, userMessage];
 
+    controllerRef.current = new AbortController();
     const endpoint = file.length > 0 ? '/api/chatStreamFile' : '/api/chatStreamText';
 
-    let response: Response; // ✅ ประกาศตรงนี้
+    let response: Response;
 
     if (file.length > 0) {
+      // 4) สร้าง payload ไฟล์ให้เสร็จก่อน แล้วค่อยส่ง
       const fileArray = await Promise.all(file.map(async (file) => {
         const arrayBuffer = await file.arrayBuffer();
         return {
@@ -169,7 +166,7 @@ export default function ClaudeForm() {
         body: JSON.stringify({
           input: input || '',
           files: fileArray,
-          history: previousMessages,
+          history, // ใช้ history ที่รวม userMessage
         }),
       });
     } else {
@@ -179,12 +176,12 @@ export default function ClaudeForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           input: input || '',
-          history: previousMessages,
+          history, // ใช้ history ที่รวม userMessage
         }),
       });
     }
 
-    // ✅ ตอนนี้สามารถใช้ response ได้ตรงนี้
+    // 5) อ่านสตรีมผลลัพธ์
     const reader = response.body?.getReader();
     const decoder = new TextDecoder('utf-8');
     let buffer = '';
@@ -217,17 +214,17 @@ export default function ClaudeForm() {
 
       buffer = lines[lines.length - 1];
     }
-    // ✅ เคลียร์ตอนจบ
+
     setIsThinking(false);
     setStreamingText('');
-    // ✅ พยายาม parse เป็น JSON และเรียก generateQuestions
+
+    // 6) อัปเดตข้อความ assistant (รองรับทั้ง text ธรรมดา/JSON wrapper)
     let outputCode = fullText;
     try {
       const parsed = JSON.parse(fullText);
       outputCode = parsed.outputCode || '';
       if (parsed.followupQuestions) setFollowupQuestions(parsed.followupQuestions);
 
-      // อัปเดตข้อความสุดท้ายด้วย Markdown ที่สรุป
       setMessages((prev) =>
         prev.map((msg, idx) =>
           idx === prev.length - 1 && msg.role === 'assistant'
@@ -236,7 +233,6 @@ export default function ClaudeForm() {
         )
       );
     } catch {
-      // ถ้าไม่ใช่ JSON ก็ใช้ข้อความตรง ๆ
       setMessages((prev) =>
         prev.map((msg, idx) =>
           idx === prev.length - 1 && msg.role === 'assistant'
@@ -246,122 +242,27 @@ export default function ClaudeForm() {
       );
     }
 
-    // ✅ สร้างคำถามแนะนำเพิ่ม
+    // 7) สร้างคำถามแนะนำเพิ่มเติม (ถ้าไม่ใช่คำทักทาย)
     if (outputCode.trim()) {
       setIsGeneratingQuestions(true);
       try {
         const greetings = [
-          // --- ภาษาไทย ---
-          "สวัสดี",
-          "สวัสดีครับ",
-          "สวัสดีค่ะ",
-          "หวัดดี",
-          "ดีจ้า",
-          "ดีครับ",
-          "ดีค่ะ",
-          "ไง",
-          "ว่าไง",
-          "โย่ว",
-          "ฮัลโหล",
-          "ฮาย",
-          "อรุณสวัสดิ์",
-          "สวัสดีตอนเช้า",
-          "สวัสดีตอนสาย",
-          "สวัสดีตอนบ่าย",
-          "สวัสดีตอนเย็น",
-          "ราตรีสวัสดิ์",
-          "ฝันดี",
-          "นอนหลับฝันดี",
-          "ยินดีที่ได้รู้จัก",
-          "ยินดีที่ได้เจอ",
-          "คิดถึงนะ",
-          "มีอะไรให้ช่วยไหม",
-          "เป็นยังไงบ้าง",
-          "ไปไหนมา",
-          "หายไปไหนมา",
-          "นานเลยนะ",
-          "มานานหรือยัง",
-          "มากันครบไหม",
-          "สบายดีไหม",
-          "เจอกันอีกแล้ว",
-          "วันนี้เป็นไงบ้าง",
-          "หิวหรือยัง",
-          "อยู่ไหน",
-          "โอเคไหม",
-          "เอาไงดี",
-          "เริ่มกันเลยไหม",
-          "ขอโทษนะ",
-          "มาแล้ว",
-          "พึ่งตื่น",
-          "ว้าว",
-          "สุดยอด",
-          "โอ้โห",
-          "เจ๋งอ่ะ",
-          "ไปกันเลย",
-          "พร้อมยัง",
-          "พร้อมลุย",
-          "เริ่มได้เลย",
-          "ว่าไงเพื่อน",
-          "สวัสดีเพื่อนรัก",
-          "ทำอะไรได้บ้าง?",
-          "ทำอะไรได้บ้าง",
-
-          // --- ภาษาอังกฤษ ---
-          "hello",
-          "hi",
-          "hey",
-          "howdy",
-          "yo",
-          "hiya",
-          "what's up",
-          "sup",
-          "good morning",
-          "good afternoon",
-          "good evening",
-          "good night",
-          "nice to meet you",
-          "pleasure to meet you",
-          "great to see you",
-          "long time no see",
-          "how have you been?",
-          "how’s it going?",
-          "what’s going on?",
-          "how are you?",
-          "greetings",
-          "good to see you",
-          "look who it is!",
-          "how are things?",
-          "been a while!",
-          "hey there",
-          "hello there",
-          "how do you do?",
-          "yo dude",
-          "yo bro",
-          "hey buddy",
-          "hey mate",
-          "hey man",
-          "hey girl",
-          "good to hear from you",
-          "hey, stranger!",
-          "hi there!",
-          "hello again!",
-          "how’s life?",
-          "what’s new?",
-          "ready to go?",
-          "all good?",
-          "top of the morning!",
-          "welcome back!",
-          "it's been too long",
-          "where have you been?",
-          "what’s the word?",
-          "hope you’re well",
-          "salutations",
-          "cheers",
-          "hi everyone!",
-          "hello world!",
-          "just checking in",
-          "glad to meet you",
-          "hi all"
+          // TH
+          "สวัสดี","สวัสดีครับ","สวัสดีค่ะ","หวัดดี","ดีจ้า","ดีครับ","ดีค่ะ","ไง","ว่าไง","โย่ว","ฮัลโหล","ฮาย",
+          "อรุณสวัสดิ์","สวัสดีตอนเช้า","สวัสดีตอนสาย","สวัสดีตอนบ่าย","สวัสดีตอนเย็น","ราตรีสวัสดิ์","ฝันดี",
+          "นอนหลับฝันดี","ยินดีที่ได้รู้จัก","ยินดีที่ได้เจอ","คิดถึงนะ","มีอะไรให้ช่วยไหม","เป็นยังไงบ้าง","ไปไหนมา",
+          "หายไปไหนมา","นานเลยนะ","มานานหรือยัง","มากันครบไหม","สบายดีไหม","เจอกันอีกแล้ว","วันนี้เป็นไงบ้าง",
+          "หิวหรือยัง","อยู่ไหน","โอเคไหม","เอาไงดี","เริ่มกันเลยไหม","ขอโทษนะ","มาแล้ว","พึ่งตื่น","ว้าว",
+          "สุดยอด","โอ้โห","เจ๋งอ่ะ","ไปกันเลย","พร้อมยัง","พร้อมลุย","เริ่มได้เลย","ว่าไงเพื่อน","สวัสดีเพื่อนรัก",
+          "ทำอะไรได้บ้าง?","ทำอะไรได้บ้าง",
+          // EN
+          "hello","hi","hey","howdy","yo","hiya","what's up","sup","good morning","good afternoon","good evening",
+          "good night","nice to meet you","pleasure to meet you","great to see you","long time no see","how have you been?",
+          "how’s it going?","what’s going on?","how are you?","greetings","good to see you","look who it is!","how are things?",
+          "been a while!","hey there","hello there","how do you do?","yo dude","yo bro","hey buddy","hey mate","hey man",
+          "hey girl","good to hear from you","hey, stranger!","hi there!","hello again!","how’s life?","what’s new?",
+          "ready to go?","all good?","top of the morning!","welcome back!","it's been too long","where have you been?",
+          "what’s the word?","hope you’re well","salutations","cheers","hi everyone!","hello world!","just checking in","glad to meet you","hi all"
         ];
 
         if (!greetings.includes(input.trim().toLowerCase())) {
@@ -379,8 +280,9 @@ export default function ClaudeForm() {
     }
     setIsGeneratingQuestions(false);
 
+    // 8) เคลียร์ค่าหลังงานเสร็จ (ย้ายมาไว้ตอนจบเพื่อกัน race)
     setInput('');
-    setFiles([]);
+    setFiles([]); // เคลียร์ไฟล์ที่นี่
     setIsLoading(false);
     setStreamingText('');
   };
@@ -391,21 +293,19 @@ export default function ClaudeForm() {
       document.querySelector('form')?.dispatchEvent(new Event('submit', { bubbles: true }));
     }, 100);
   };
-  const handleAbort = () => {
-    controllerRef.current?.abort(); // หยุด stream
-    setIsThinking(false);           // ปิด bubble loading
-    setIsLoading(false);            // ปิดปุ่มโหลด
-    setStreamingText('');           // เคลียร์ข้อความที่กำลัง stream
 
+  const handleAbort = () => {
+    controllerRef.current?.abort();
+    setIsThinking(false);
+    setIsLoading(false);
+    setStreamingText('');
     toast.warn('⛔️ หยุดการตอบกลับแล้ว', {
       position: "top-right",
       autoClose: 1000,
     });
   };
 
-
   return (
-    // className="relative min-h-screen bg-gray-50 flex flex-col items-center px-4 pb-36 sm:pb-28 dark:bg-gray-900 justify-center"
     <div
       className={clsx(
         `w-full mx-auto mt-3 ${!(isThinking || messages.length > 0) ? '' : 'fixed bottom-4 ใz-10'}`,
@@ -429,98 +329,35 @@ export default function ClaudeForm() {
           </p>
         </div>
       )}
+
       <div
         className="fixed top-20 flex items-center gap-2 px-4 py-2 mb-10 rounded-xl shadow-deep text-lg font-bold  bg-white text-gray-800 dark:bg-gray-800 dark:text-white"
-        style={{
-          boxShadow: 'rgba(112, 139, 152, 0.2) 0px 5px 45px',
-        }}
+        style={{ boxShadow: 'rgba(112, 139, 152, 0.2) 0px 5px 45px' }}
       >
-        {/* <span className="inline-flex items-center justify-center w-6 h-6 bg-purple-100 dark:bg-purple-800 rounded-full">
-          <span className="text-purple-500 dark:text-purple-300 text-base p-4">
-            <svg
-              stroke="currentColor"
-              fill="currentColor"
-              strokeWidth="0"
-              viewBox="0 0 24 24"
-              height="1.5em"
-              width="1.5em"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path fill="none" d="M0 0h24v24H0z" />
-              <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z" />
-            </svg>
-          </span>
-        </span> */}
         by Claude.AI
       </div>
+
       {isDragging && (
         <div className="fixed inset-0 bg-gray-400 opacity-60 flex justify-center items-center z-[999999] pointer-events-none text-gray-800">
           <span>วางไฟล์ที่นี่เพื่อแนบ</span>
         </div>
       )}
+
       <div className="w-full sm:w-[640px] md:w-[768px] lg:w-[1024px] 2xl:w-[1280px] flex flex-col gap-4 z-10 overflow-y-auto">
         {messages.map((msg, i) => (
           <div
             key={i}
             className={`
-      max-w-[100%] . py-2 rounded-xl
-      ${msg.role === 'user'
+              max-w-[100%] . py-2 rounded-xl
+              ${msg.role === 'user'
                 ? 'self-end bg-white dark:bg-purple-900 text-right text-black dark:text-white shadow px-3'
                 : '.self-start .bg-white .dark:bg-gray-800 .text-left .text-gray-800 .dark:text-white .shadow'
               }
-    `}
+            `}
           >
             <div className="prose prose-sm break-words max-w-full">
               {msg.role === 'assistant' ? (
-                // 👉 Claude message: แสดงไอคอนวงกลม
                 <div className="flex items-start gap-3">
-                  {/* วงกลม gradient */}
-
-                  {/* ข้อความ Claude */}
-                  {/* <div className="flex-shrink-0 mb-2">
-                    {!isThinking && (
-                      <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect className='shadow' width="30" height="30" rx="15" fill="white" />
-                        <path d="M8.30231 6.90736C8.73811 6.90736 9.11564 6.6576 9.29943 6.29341H20.7005C20.8843 6.6576 21.2619 6.90736 21.6977 6.90736C22.3142 6.90736 22.8139 6.4076 22.8139 5.79108C22.8139 5.17456 22.3142 4.6748 21.6977 4.6748C21.2619 4.6748 20.8843 4.92457 20.7005 5.28876H9.29943C9.11564 4.92457 8.73811 4.6748 8.30231 4.6748C7.68579 4.6748 7.18604 5.17456 7.18604 5.79108C7.18604 6.4076 7.68579 6.90736 8.30231 6.90736Z" fill="url(#paint0_linear_497_44347)" />
-                        <path d="M10.4156 9.64204C10.2318 10.0062 9.85432 10.256 9.41853 10.256C8.802 10.256 8.30225 9.75624 8.30225 9.13972C8.30225 8.5232 8.802 8.02344 9.41853 8.02344C9.85432 8.02344 10.2318 8.2732 10.4156 8.63739H19.5842C19.768 8.2732 20.1455 8.02344 20.5813 8.02344C21.1978 8.02344 21.6976 8.5232 21.6976 9.13972C21.6976 9.75624 21.1978 10.256 20.5813 10.256C20.1455 10.256 19.768 10.0062 19.5842 9.64204H10.4156Z" fill="url(#paint1_linear_497_44347)" />
-                        <path d="M12.3693 11.986C12.1855 11.6218 11.8079 11.3721 11.3721 11.3721C10.7556 11.3721 10.2559 11.8718 10.2559 12.4883C10.2559 13.1049 10.7556 13.6046 11.3721 13.6046C11.8079 13.6046 12.1855 13.3549 12.3693 12.9907H17.6308C17.8146 13.3549 18.1922 13.6046 18.628 13.6046C19.2445 13.6046 19.7442 13.1049 19.7442 12.4883C19.7442 11.8718 19.2445 11.3721 18.628 11.3721C18.1922 11.3721 17.8146 11.6218 17.6308 11.986H12.3693Z" fill="url(#paint2_linear_497_44347)" />
-                        <path d="M16.1163 15.0001C16.1163 15.6166 15.6166 16.1163 15.0001 16.1163C14.3835 16.1163 13.8838 15.6166 13.8838 15.0001C13.8838 14.3835 14.3835 13.8838 15.0001 13.8838C15.6166 13.8838 16.1163 14.3835 16.1163 15.0001Z" fill="url(#paint3_linear_497_44347)" />
-                        <path d="M8.30231 23.0928C8.73811 23.0928 9.11564 23.3425 9.29943 23.7067H20.7005C20.8843 23.3425 21.2619 23.0928 21.6977 23.0928C22.3142 23.0928 22.8139 23.5925 22.8139 24.2091C22.8139 24.8256 22.3142 25.3253 21.6977 25.3253C21.2619 25.3253 20.8843 25.0756 20.7005 24.7114H9.29943C9.11564 25.0756 8.73811 25.3253 8.30231 25.3253C7.68579 25.3253 7.18604 24.8256 7.18604 24.2091C7.18604 23.5925 7.68579 23.0928 8.30231 23.0928Z" fill="url(#paint4_linear_497_44347)" />
-                        <path d="M10.4156 20.3581C10.2318 19.9939 9.85432 19.7441 9.41853 19.7441C8.802 19.7441 8.30225 20.2439 8.30225 20.8604C8.30225 21.4769 8.802 21.9767 9.41853 21.9767C9.85432 21.9767 10.2318 21.7269 10.4156 21.3627H19.5842C19.768 21.7269 20.1455 21.9767 20.5813 21.9767C21.1978 21.9767 21.6976 21.4769 21.6976 20.8604C21.6976 20.2439 21.1978 19.7441 20.5813 19.7441C20.1455 19.7441 19.768 19.9939 19.5842 20.3581H10.4156Z" fill="url(#paint5_linear_497_44347)" />
-                        <path d="M11.3721 16.3955C11.8079 16.3955 12.1855 16.6453 12.3693 17.0095H17.6308C17.8146 16.6453 18.1922 16.3955 18.628 16.3955C19.2445 16.3955 19.7442 16.8953 19.7442 17.5118C19.7442 18.1283 19.2445 18.6281 18.628 18.6281C18.1922 18.6281 17.8146 18.3783 17.6308 18.0141H12.3693C12.1855 18.3783 11.8079 18.6281 11.3721 18.6281C10.7556 18.6281 10.2559 18.1283 10.2559 17.5118C10.2559 16.8953 10.7556 16.3955 11.3721 16.3955Z" fill="url(#paint6_linear_497_44347)" />
-                        <defs>
-                          <linearGradient id="paint0_linear_497_44347" x1="12.2983" y1="9.26093" x2="23.2571" y2="18.6022" gradientUnits="userSpaceOnUse">
-                            <stop stop-color="#FC95FF" />
-                            <stop offset="1" stop-color="#F639BD" />
-                          </linearGradient>
-                          <linearGradient id="paint1_linear_497_44347" x1="12.2982" y1="9.26072" x2="23.257" y2="18.602" gradientUnits="userSpaceOnUse">
-                            <stop stop-color="#FC95FF" />
-                            <stop offset="1" stop-color="#F639BD" />
-                          </linearGradient>
-                          <linearGradient id="paint2_linear_497_44347" x1="12.2984" y1="9.26052" x2="23.2572" y2="18.6018" gradientUnits="userSpaceOnUse">
-                            <stop stop-color="#FC95FF" />
-                            <stop offset="1" stop-color="#F639BD" />
-                          </linearGradient>
-                          <linearGradient id="paint3_linear_497_44347" x1="12.2984" y1="9.26061" x2="23.2572" y2="18.6019" gradientUnits="userSpaceOnUse">
-                            <stop stop-color="#FC95FF" />
-                            <stop offset="1" stop-color="#F639BD" />
-                          </linearGradient>
-                          <linearGradient id="paint4_linear_497_44347" x1="12.2983" y1="9.26029" x2="23.2571" y2="18.6015" gradientUnits="userSpaceOnUse">
-                            <stop stop-color="#FC95FF" />
-                            <stop offset="1" stop-color="#F639BD" />
-                          </linearGradient>
-                          <linearGradient id="paint5_linear_497_44347" x1="12.2982" y1="9.26049" x2="23.257" y2="18.6017" gradientUnits="userSpaceOnUse">
-                            <stop stop-color="#FC95FF" />
-                            <stop offset="1" stop-color="#F639BD" />
-                          </linearGradient>
-                          <linearGradient id="paint6_linear_497_44347" x1="12.2984" y1="9.2607" x2="23.2572" y2="18.6019" gradientUnits="userSpaceOnUse">
-                            <stop stop-color="#FC95FF" />
-                            <stop offset="1" stop-color="#F639BD" />
-                          </linearGradient>
-                        </defs>
-                      </svg>
-                    )}
-                  </div> */}
                   <div className="break-words text-sm">
                     <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
                       {msg.content}
@@ -528,7 +365,6 @@ export default function ClaudeForm() {
                   </div>
                 </div>
               ) : (
-                // 👉 User message: ไม่มีไอคอน
                 <div className="text-sm">
                   <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
                     {msg.content}
@@ -538,95 +374,14 @@ export default function ClaudeForm() {
             </div>
           </div>
         ))}
+
         {isThinking && (
           streamingText.trim() === '' ? (
             <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 p-3 rounded-xl animate-pulse text-gray-500 dark:text-gray-300">
-              <svg className='.animate-spin' width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect className='shadow' width="30" height="30" rx="15" fill="white" />
-                <path d="M8.30231 6.90736C8.73811 6.90736 9.11564 6.6576 9.29943 6.29341H20.7005C20.8843 6.6576 21.2619 6.90736 21.6977 6.90736C22.3142 6.90736 22.8139 6.4076 22.8139 5.79108C22.8139 5.17456 22.3142 4.6748 21.6977 4.6748C21.2619 4.6748 20.8843 4.92457 20.7005 5.28876H9.29943C9.11564 4.92457 8.73811 4.6748 8.30231 4.6748C7.68579 4.6748 7.18604 5.17456 7.18604 5.79108C7.18604 6.4076 7.68579 6.90736 8.30231 6.90736Z" fill="url(#paint0_linear_497_44347)" />
-                <path d="M10.4156 9.64204C10.2318 10.0062 9.85432 10.256 9.41853 10.256C8.802 10.256 8.30225 9.75624 8.30225 9.13972C8.30225 8.5232 8.802 8.02344 9.41853 8.02344C9.85432 8.02344 10.2318 8.2732 10.4156 8.63739H19.5842C19.768 8.2732 20.1455 8.02344 20.5813 8.02344C21.1978 8.02344 21.6976 8.5232 21.6976 9.13972C21.6976 9.75624 21.1978 10.256 20.5813 10.256C20.1455 10.256 19.768 10.0062 19.5842 9.64204H10.4156Z" fill="url(#paint1_linear_497_44347)" />
-                <path d="M12.3693 11.986C12.1855 11.6218 11.8079 11.3721 11.3721 11.3721C10.7556 11.3721 10.2559 11.8718 10.2559 12.4883C10.2559 13.1049 10.7556 13.6046 11.3721 13.6046C11.8079 13.6046 12.1855 13.3549 12.3693 12.9907H17.6308C17.8146 13.3549 18.1922 13.6046 18.628 13.6046C19.2445 13.6046 19.7442 13.1049 19.7442 12.4883C19.7442 11.8718 19.2445 11.3721 18.628 11.3721C18.1922 11.3721 17.8146 11.6218 17.6308 11.986H12.3693Z" fill="url(#paint2_linear_497_44347)" />
-                <path d="M16.1163 15.0001C16.1163 15.6166 15.6166 16.1163 15.0001 16.1163C14.3835 16.1163 13.8838 15.6166 13.8838 15.0001C13.8838 14.3835 14.3835 13.8838 15.0001 13.8838C15.6166 13.8838 16.1163 14.3835 16.1163 15.0001Z" fill="url(#paint3_linear_497_44347)" />
-                <path d="M8.30231 23.0928C8.73811 23.0928 9.11564 23.3425 9.29943 23.7067H20.7005C20.8843 23.3425 21.2619 23.0928 21.6977 23.0928C22.3142 23.0928 22.8139 23.5925 22.8139 24.2091C22.8139 24.8256 22.3142 25.3253 21.6977 25.3253C21.2619 25.3253 20.8843 25.0756 20.7005 24.7114H9.29943C9.11564 25.0756 8.73811 25.3253 8.30231 25.3253C7.68579 25.3253 7.18604 24.8256 7.18604 24.2091C7.18604 23.5925 7.68579 23.0928 8.30231 23.0928Z" fill="url(#paint4_linear_497_44347)" />
-                <path d="M10.4156 20.3581C10.2318 19.9939 9.85432 19.7441 9.41853 19.7441C8.802 19.7441 8.30225 20.2439 8.30225 20.8604C8.30225 21.4769 8.802 21.9767 9.41853 21.9767C9.85432 21.9767 10.2318 21.7269 10.4156 21.3627H19.5842C19.768 21.7269 20.1455 21.9767 20.5813 21.9767C21.1978 21.9767 21.6976 21.4769 21.6976 20.8604C21.6976 20.2439 21.1978 19.7441 20.5813 19.7441C20.1455 19.7441 19.768 19.9939 19.5842 20.3581H10.4156Z" fill="url(#paint5_linear_497_44347)" />
-                <path d="M11.3721 16.3955C11.8079 16.3955 12.1855 16.6453 12.3693 17.0095H17.6308C17.8146 16.6453 18.1922 16.3955 18.628 16.3955C19.2445 16.3955 19.7442 16.8953 19.7442 17.5118C19.7442 18.1283 19.2445 18.6281 18.628 18.6281C18.1922 18.6281 17.8146 18.3783 17.6308 18.0141H12.3693C12.1855 18.3783 11.8079 18.6281 11.3721 18.6281C10.7556 18.6281 10.2559 18.1283 10.2559 17.5118C10.2559 16.8953 10.7556 16.3955 11.3721 16.3955Z" fill="url(#paint6_linear_497_44347)" />
-                <defs>
-                  <linearGradient id="paint0_linear_497_44347" x1="12.2983" y1="9.26093" x2="23.2571" y2="18.6022" gradientUnits="userSpaceOnUse">
-                    <stop stop-color="#FC95FF" />
-                    <stop offset="1" stop-color="#F639BD" />
-                  </linearGradient>
-                  <linearGradient id="paint1_linear_497_44347" x1="12.2982" y1="9.26072" x2="23.257" y2="18.602" gradientUnits="userSpaceOnUse">
-                    <stop stop-color="#FC95FF" />
-                    <stop offset="1" stop-color="#F639BD" />
-                  </linearGradient>
-                  <linearGradient id="paint2_linear_497_44347" x1="12.2984" y1="9.26052" x2="23.2572" y2="18.6018" gradientUnits="userSpaceOnUse">
-                    <stop stop-color="#FC95FF" />
-                    <stop offset="1" stop-color="#F639BD" />
-                  </linearGradient>
-                  <linearGradient id="paint3_linear_497_44347" x1="12.2984" y1="9.26061" x2="23.2572" y2="18.6019" gradientUnits="userSpaceOnUse">
-                    <stop stop-color="#FC95FF" />
-                    <stop offset="1" stop-color="#F639BD" />
-                  </linearGradient>
-                  <linearGradient id="paint4_linear_497_44347" x1="12.2983" y1="9.26029" x2="23.2571" y2="18.6015" gradientUnits="userSpaceOnUse">
-                    <stop stop-color="#FC95FF" />
-                    <stop offset="1" stop-color="#F639BD" />
-                  </linearGradient>
-                  <linearGradient id="paint5_linear_497_44347" x1="12.2982" y1="9.26049" x2="23.257" y2="18.6017" gradientUnits="userSpaceOnUse">
-                    <stop stop-color="#FC95FF" />
-                    <stop offset="1" stop-color="#F639BD" />
-                  </linearGradient>
-                  <linearGradient id="paint6_linear_497_44347" x1="12.2984" y1="9.2607" x2="23.2572" y2="18.6019" gradientUnits="userSpaceOnUse">
-                    <stop stop-color="#FC95FF" />
-                    <stop offset="1" stop-color="#F639BD" />
-                  </linearGradient>
-                </defs>
-              </svg>
               <p>กำลังวิเคราะห์...</p>
             </div>
           ) : (
             <div className="max-w-full px-4 py-3 rounded-xl shadow self-start bg-white dark:bg-gray-800 border border-dashed border-purple-200 dark:border-purple-700 flex gap-2">
-              {/* <div className="mt-1">
-              <svg className='animate-spin'  width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect className='shadow' width="30" height="30" rx="15" fill="white" />
-                        <path d="M8.30231 6.90736C8.73811 6.90736 9.11564 6.6576 9.29943 6.29341H20.7005C20.8843 6.6576 21.2619 6.90736 21.6977 6.90736C22.3142 6.90736 22.8139 6.4076 22.8139 5.79108C22.8139 5.17456 22.3142 4.6748 21.6977 4.6748C21.2619 4.6748 20.8843 4.92457 20.7005 5.28876H9.29943C9.11564 4.92457 8.73811 4.6748 8.30231 4.6748C7.68579 4.6748 7.18604 5.17456 7.18604 5.79108C7.18604 6.4076 7.68579 6.90736 8.30231 6.90736Z" fill="url(#paint0_linear_497_44347)" />
-                        <path d="M10.4156 9.64204C10.2318 10.0062 9.85432 10.256 9.41853 10.256C8.802 10.256 8.30225 9.75624 8.30225 9.13972C8.30225 8.5232 8.802 8.02344 9.41853 8.02344C9.85432 8.02344 10.2318 8.2732 10.4156 8.63739H19.5842C19.768 8.2732 20.1455 8.02344 20.5813 8.02344C21.1978 8.02344 21.6976 8.5232 21.6976 9.13972C21.6976 9.75624 21.1978 10.256 20.5813 10.256C20.1455 10.256 19.768 10.0062 19.5842 9.64204H10.4156Z" fill="url(#paint1_linear_497_44347)" />
-                        <path d="M12.3693 11.986C12.1855 11.6218 11.8079 11.3721 11.3721 11.3721C10.7556 11.3721 10.2559 11.8718 10.2559 12.4883C10.2559 13.1049 10.7556 13.6046 11.3721 13.6046C11.8079 13.6046 12.1855 13.3549 12.3693 12.9907H17.6308C17.8146 13.3549 18.1922 13.6046 18.628 13.6046C19.2445 13.6046 19.7442 13.1049 19.7442 12.4883C19.7442 11.8718 19.2445 11.3721 18.628 11.3721C18.1922 11.3721 17.8146 11.6218 17.6308 11.986H12.3693Z" fill="url(#paint2_linear_497_44347)" />
-                        <path d="M16.1163 15.0001C16.1163 15.6166 15.6166 16.1163 15.0001 16.1163C14.3835 16.1163 13.8838 15.6166 13.8838 15.0001C13.8838 14.3835 14.3835 13.8838 15.0001 13.8838C15.6166 13.8838 16.1163 14.3835 16.1163 15.0001Z" fill="url(#paint3_linear_497_44347)" />
-                        <path d="M8.30231 23.0928C8.73811 23.0928 9.11564 23.3425 9.29943 23.7067H20.7005C20.8843 23.3425 21.2619 23.0928 21.6977 23.0928C22.3142 23.0928 22.8139 23.5925 22.8139 24.2091C22.8139 24.8256 22.3142 25.3253 21.6977 25.3253C21.2619 25.3253 20.8843 25.0756 20.7005 24.7114H9.29943C9.11564 25.0756 8.73811 25.3253 8.30231 25.3253C7.68579 25.3253 7.18604 24.8256 7.18604 24.2091C7.18604 23.5925 7.68579 23.0928 8.30231 23.0928Z" fill="url(#paint4_linear_497_44347)" />
-                        <path d="M10.4156 20.3581C10.2318 19.9939 9.85432 19.7441 9.41853 19.7441C8.802 19.7441 8.30225 20.2439 8.30225 20.8604C8.30225 21.4769 8.802 21.9767 9.41853 21.9767C9.85432 21.9767 10.2318 21.7269 10.4156 21.3627H19.5842C19.768 21.7269 20.1455 21.9767 20.5813 21.9767C21.1978 21.9767 21.6976 21.4769 21.6976 20.8604C21.6976 20.2439 21.1978 19.7441 20.5813 19.7441C20.1455 19.7441 19.768 19.9939 19.5842 20.3581H10.4156Z" fill="url(#paint5_linear_497_44347)" />
-                        <path d="M11.3721 16.3955C11.8079 16.3955 12.1855 16.6453 12.3693 17.0095H17.6308C17.8146 16.6453 18.1922 16.3955 18.628 16.3955C19.2445 16.3955 19.7442 16.8953 19.7442 17.5118C19.7442 18.1283 19.2445 18.6281 18.628 18.6281C18.1922 18.6281 17.8146 18.3783 17.6308 18.0141H12.3693C12.1855 18.3783 11.8079 18.6281 11.3721 18.6281C10.7556 18.6281 10.2559 18.1283 10.2559 17.5118C10.2559 16.8953 10.7556 16.3955 11.3721 16.3955Z" fill="url(#paint6_linear_497_44347)" />
-                        <defs>
-                          <linearGradient id="paint0_linear_497_44347" x1="12.2983" y1="9.26093" x2="23.2571" y2="18.6022" gradientUnits="userSpaceOnUse">
-                            <stop stop-color="#FC95FF" />
-                            <stop offset="1" stop-color="#F639BD" />
-                          </linearGradient>
-                          <linearGradient id="paint1_linear_497_44347" x1="12.2982" y1="9.26072" x2="23.257" y2="18.602" gradientUnits="userSpaceOnUse">
-                            <stop stop-color="#FC95FF" />
-                            <stop offset="1" stop-color="#F639BD" />
-                          </linearGradient>
-                          <linearGradient id="paint2_linear_497_44347" x1="12.2984" y1="9.26052" x2="23.2572" y2="18.6018" gradientUnits="userSpaceOnUse">
-                            <stop stop-color="#FC95FF" />
-                            <stop offset="1" stop-color="#F639BD" />
-                          </linearGradient>
-                          <linearGradient id="paint3_linear_497_44347" x1="12.2984" y1="9.26061" x2="23.2572" y2="18.6019" gradientUnits="userSpaceOnUse">
-                            <stop stop-color="#FC95FF" />
-                            <stop offset="1" stop-color="#F639BD" />
-                          </linearGradient>
-                          <linearGradient id="paint4_linear_497_44347" x1="12.2983" y1="9.26029" x2="23.2571" y2="18.6015" gradientUnits="userSpaceOnUse">
-                            <stop stop-color="#FC95FF" />
-                            <stop offset="1" stop-color="#F639BD" />
-                          </linearGradient>
-                          <linearGradient id="paint5_linear_497_44347" x1="12.2982" y1="9.26049" x2="23.257" y2="18.6017" gradientUnits="userSpaceOnUse">
-                            <stop stop-color="#FC95FF" />
-                            <stop offset="1" stop-color="#F639BD" />
-                          </linearGradient>
-                          <linearGradient id="paint6_linear_497_44347" x1="12.2984" y1="9.2607" x2="23.2572" y2="18.6019" gradientUnits="userSpaceOnUse">
-                            <stop stop-color="#FC95FF" />
-                            <stop offset="1" stop-color="#F639BD" />
-                          </linearGradient>
-                        </defs>
-                      </svg>
-              </div> */}
               <div className="prose prose-sm max-w-full break-words text-gray-600 dark:text-gray-100">
                 <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
                   {streamingText}
@@ -635,19 +390,8 @@ export default function ClaudeForm() {
             </div>
           )
         )}
-        {/* {messages.length > 0 && (
-          <button
-            onClick={() => {
-              window.location.reload();
-              setMessages([])
-            }}
-            className="text-sm text-red-500 underline mt-2 mb-40"
-          >
-            เคลียร์ประวัติการสนทนา
-          </button>
-        )} */}
-
       </div>
+
       {isGeneratingQuestions ? (
         <div className="mt-6 flex flex-col gap-2 items-start pl-3 sm:pl-0 mb-4 fixed bottom-24 z-10 left-0">
           <div className="h-4 w-40 bg-gradient-to-r from-pink-100 via-pink-200 to-pink-100 rounded-full animate-pulse" />
@@ -662,119 +406,22 @@ export default function ClaudeForm() {
         </div>
       ) : (
         ![
-          // --- ภาษาไทย ---
-          "สวัสดี",
-          "สวัสดีครับ",
-          "สวัสดีค่ะ",
-          "หวัดดี",
-          "ดีจ้า",
-          "ดีครับ",
-          "ดีค่ะ",
-          "ไง",
-          "ว่าไง",
-          "โย่ว",
-          "ฮัลโหล",
-          "ฮาย",
-          "อรุณสวัสดิ์",
-          "สวัสดีตอนเช้า",
-          "สวัสดีตอนสาย",
-          "สวัสดีตอนบ่าย",
-          "สวัสดีตอนเย็น",
-          "ราตรีสวัสดิ์",
-          "ฝันดี",
-          "นอนหลับฝันดี",
-          "ยินดีที่ได้รู้จัก",
-          "ยินดีที่ได้เจอ",
-          "คิดถึงนะ",
-          "มีอะไรให้ช่วยไหม",
-          "เป็นยังไงบ้าง",
-          "ไปไหนมา",
-          "หายไปไหนมา",
-          "นานเลยนะ",
-          "มานานหรือยัง",
-          "มากันครบไหม",
-          "สบายดีไหม",
-          "เจอกันอีกแล้ว",
-          "วันนี้เป็นไงบ้าง",
-          "หิวหรือยัง",
-          "อยู่ไหน",
-          "โอเคไหม",
-          "เอาไงดี",
-          "เริ่มกันเลยไหม",
-          "ขอโทษนะ",
-          "มาแล้ว",
-          "พึ่งตื่น",
-          "ว้าว",
-          "สุดยอด",
-          "โอ้โห",
-          "เจ๋งอ่ะ",
-          "ไปกันเลย",
-          "พร้อมยัง",
-          "พร้อมลุย",
-          "เริ่มได้เลย",
-          "ว่าไงเพื่อน",
-          "สวัสดีเพื่อนรัก",
-          "ทำอะไรได้บ้าง?",
-          "ทำอะไรได้บ้าง",
-
-          // --- ภาษาอังกฤษ ---
-          "hello",
-          "hi",
-          "hey",
-          "howdy",
-          "yo",
-          "hiya",
-          "what's up",
-          "sup",
-          "good morning",
-          "good afternoon",
-          "good evening",
-          "good night",
-          "nice to meet you",
-          "pleasure to meet you",
-          "great to see you",
-          "long time no see",
-          "how have you been?",
-          "how’s it going?",
-          "what’s going on?",
-          "how are you?",
-          "greetings",
-          "good to see you",
-          "look who it is!",
-          "how are things?",
-          "been a while!",
-          "hey there",
-          "hello there",
-          "how do you do?",
-          "yo dude",
-          "yo bro",
-          "hey buddy",
-          "hey mate",
-          "hey man",
-          "hey girl",
-          "good to hear from you",
-          "hey, stranger!",
-          "hi there!",
-          "hello again!",
-          "how’s life?",
-          "what’s new?",
-          "ready to go?",
-          "all good?",
-          "top of the morning!",
-          "welcome back!",
-          "it's been too long",
-          "where have you been?",
-          "what’s the word?",
-          "hope you’re well",
-          "salutations",
-          "cheers",
-          "hi everyone!",
-          "hello world!",
-          "just checking in",
-          "glad to meet you",
-          "hi all"
+          "สวัสดี","สวัสดีครับ","สวัสดีค่ะ","หวัดดี","ดีจ้า","ดีครับ","ดีค่ะ","ไง","ว่าไง","โย่ว","ฮัลโหล","ฮาย",
+          "อรุณสวัสดิ์","สวัสดีตอนเช้า","สวัสดีตอนสาย","สวัสดีตอนบ่าย","สวัสดีตอนเย็น","ราตรีสวัสดิ์","ฝันดี",
+          "นอนหลับฝันดี","ยินดีที่ได้รู้จัก","ยินดีที่ได้เจอ","คิดถึงนะ","มีอะไรให้ช่วยไหม","เป็นยังไงบ้าง","ไปไหนมา",
+          "หายไปไหนมา","นานเลยนะ","มานานหรือยัง","มากันครบไหม","สบายดีไหม","เจอกันอีกแล้ว","วันนี้เป็นไงบ้าง",
+          "หิวหรือยัง","อยู่ไหน","โอเคไหม","เอาไงดี","เริ่มกันเลยไหม","ขอโทษนะ","มาแล้ว","พึ่งตื่น","ว้าว","สุดยอด",
+          "โอ้โห","เจ๋งอ่ะ","ไปกันเลย","พร้อมยัง","พร้อมลุย","เริ่มได้เลย","ว่าไงเพื่อน","สวัสดีเพื่อนรัก",
+          "ทำอะไรได้บ้าง?","ทำอะไรได้บ้าง",
+          "hello","hi","hey","howdy","yo","hiya","what's up","sup","good morning","good afternoon","good evening",
+          "good night","nice to meet you","pleasure to meet you","great to see you","long time no see","how have you been?",
+          "how’s it going?","what’s going on?","how are you?","greetings","good to see you","look who it is!","how are things?",
+          "been a while!","hey there","hello there","how do you do?","yo dude","yo bro","hey buddy","hey mate","hey man",
+          "hey girl","good to hear from you","hey, stranger!","hi there!","hello again!","how’s life?","what’s new?",
+          "ready to go?","all good?","top of the morning!","welcome back!","it's been too long","where have you been?",
+          "what’s the word?","hope you’re well","salutations","cheers","hi everyone!","hello world!","just checking in","glad to meet you","hi all"
         ].includes(input.trim().toLowerCase()) && followupQuestions.length > 0 && (
-          <div className="mt-6 flex flex-col gap-2 items-start px-4 sm:px-0 mb-2 fixed bottom-24 z-10 w-full sm:w-[640px] md:w-[768px] lg:w-[1024px] 2xl:w-[1280px] .left-1/2 .transform .-translate-x-1/2">
+          <div className="mt-6 flex flex-col gap-2 items-start px-4 sm:px-0 mb-2 fixed bottom-24 z-10 w-full sm:w-[640px] md:w-[768px] lg:w-[1024px] 2xl:w-[1280px]">
             {followupQuestions.map((q, idx) => (
               <button
                 key={idx}
@@ -787,6 +434,7 @@ export default function ClaudeForm() {
           </div>
         )
       )}
+
       <form
         onSubmit={handleSubmit}
         className={clsx(
@@ -797,23 +445,17 @@ export default function ClaudeForm() {
           }
         )}
       >
-
-
         <div className="p-[1px] rounded-xl bg-gradient-to-r from-[#4385EF] to-[#FF68F5]">
           <div className="bg-white dark:bg-gray-800 rounded-xl flex items-start px-3 py-2 gap-3 shadow-lg">
-
-            {/* ไอคอนแนบไฟล์ */}
             <div className="relative group">
-              {/* Tooltip */}
               <div className="absolute bottom-8 left-5/3 -translate-x-1/2 bg-white text-[#10203C] text-sm px-3 py-1 rounded-lg shadow-md
-                  opacity-0 group-hover:opacity-100 transition z-10
-                  whitespace-nowrap min-w-max
-                  before:content-['']">
-                    <svg className="absolute text-white h-2 left-0 ml-3 top-full" x="0px" y="0px" viewBox="0 0 255 255"><polygon className="fill-current" points="0,0 127.5,127.5 255,0"/></svg>
-    เพิ่มไฟล์ที่นี่
-  </div>
+                  opacity-0 group-hover:opacity-100 transition z-10 whitespace-nowrap min-w-max before:content-['']">
+                <svg className="absolute text-white h-2 left-0 ml-3 top-full" x="0px" y="0px" viewBox="0 0 255 255">
+                  <polygon className="fill-current" points="0,0 127.5,127.5 255,0"/>
+                </svg>
+                เพิ่มไฟล์ที่นี่
+              </div>
 
-              {/* File Label */}
               <label
                 title="เพิ่มไฟล์ที่นี่"
                 className={`cursor-pointer transition text-gray-600 dark:text-gray-300 hover:text-purple-600 ${input.trim().length > 0 ? 'self-end mb-3' : 'self-center'}`}
@@ -821,8 +463,6 @@ export default function ClaudeForm() {
                 <svg className="text-[#4385EF] mt-2" width="24" height="25" viewBox="0 0 24 25" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M3.11084 13.8753L12.4528 4.5333C12.9371 4.0388 13.5145 3.64523 14.1518 3.37535C14.7891 3.10547 15.4736 2.96464 16.1657 2.96101C16.8578 2.95738 17.5437 3.09101 18.1838 3.35419C18.824 3.61736 19.4055 4.00485 19.8949 4.49423C20.3843 4.98362 20.7718 5.56519 21.035 6.20529C21.2981 6.8454 21.4318 7.53133 21.4281 8.22342C21.4245 8.9155 21.2837 9.6 21.0138 10.2373C20.7439 10.8746 20.3503 11.4521 19.8558 11.9363L11.1298 20.6603C10.5893 21.1833 9.86479 21.473 9.11262 21.4668C8.36045 21.4606 7.64085 21.1591 7.10896 20.6272C6.57708 20.0953 6.27553 19.3757 6.26934 18.6235C6.26314 17.8713 6.55279 17.1469 7.07584 16.6063L15.4478 8.2333" stroke="#4385EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-
-                {/* <FiFilePlus size={20} className="text-[#4385EF]" /> */}
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -834,8 +474,6 @@ export default function ClaudeForm() {
               </label>
             </div>
 
-
-            {/* กล่องข้อความ */}
             <div className="flex flex-col flex-grow min-w-0">
               <TextareaAutosize
                 ref={textareaRef}
@@ -855,29 +493,21 @@ export default function ClaudeForm() {
                   }
                 }}
                 placeholder="Ask anything about your health"
-                className="bg-transparent border-none outline-none text-sm px-2 py-3 resize-none
-                     text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-white/60
-                     overflow-auto max-h-[250px]"
+                className="bg-transparent border-none outline-none text-sm px-2 py-3 resize-none text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-white/60 overflow-auto max-h-[250px]"
                 rows={1}
               />
 
-              {/* แสดงชื่อไฟล์ที่แนบ */}
               {file.length > 0 && file.map((f, idx) => (
                 <div key={idx} className="mt-2 flex items-center gap-2 bg-gray-100 dark:bg-gray-700 text-sm text-gray-700 dark:text-gray-100 px-3 py-1 rounded-full w-fit">
                   <FiPaperclip />
                   <span className="truncate max-w-[160px]">{f.name}</span>
-                  <button
-                    type="button"
-                    className="hover:text-red-500"
-                    onClick={handleRemoveFile}
-                  >
+                  <button type="button" className="hover:text-red-500" onClick={handleRemoveFile}>
                     <FiX />
                   </button>
                 </div>
               ))}
             </div>
 
-            {/* ปุ่มส่งหรือหยุด */}
             <div className={`flex flex-col ${input.trim().length > 0 || file.length > 0 ? 'self-end' : 'self-center'} h-full`}>
               <div className="flex items-center">
                 {isThinking || isLoading ? (
@@ -892,10 +522,7 @@ export default function ClaudeForm() {
                   <button
                     type="submit"
                     disabled={isThinking || isLoading || (!input.trim() && file.length === 0)}
-                    className={`rounded-full p-3.5 px-3.5 text-white transition
-                          ${isThinking || isLoading || (!input.trim() && file.length === 0)
-                        ? 'bg-[#F639BD] opacity-60 cursor-not-allowed'
-                        : 'bg-[#F639BD] '}`}
+                    className={`rounded-full p-3.5 px-3.5 text-white transition ${isThinking || isLoading || (!input.trim() && file.length === 0) ? 'bg-[#F639BD] opacity-60 cursor-not-allowed' : 'bg-[#F639BD]'}`}
                   >
                     <HiArrowUp />
                   </button>
@@ -905,102 +532,6 @@ export default function ClaudeForm() {
           </div>
         </div>
       </form>
-
-      {/* <div className="fixed inline-flex bottom-4 w-sm  md:w-2xl lg:w-3xl 2xl:w-7xl flex-col gap-4 z-10 rounded-xl bg-gradient-to-r from-[#4385EF] to-[#FF68F5]">
-
-        <form
-          onSubmit={handleSubmit}
-          className="bg-white dark:bg-gray-800 shadow-lg w-full flex items-start px-3 py-2 gap-2 sm:gap-3  rounded-xl "
-          style={{ boxShadow: '9px 5px 70px rgba(112, 144, 176, 0.' }}
-        >
-          <label
-            className={`cursor-pointer transition ${input.trim().length > 0 ? 'self-end' : 'self-center'
-              } text-gray-600 dark:text-gray-300 hover:text-purple-600`}
-          >
-            <FiFilePlus size={20} className="text-[#4385EF]" />
-            <input
-              type="file"
-              ref={fileInputRef}
-              className="hidden"
-              accept="image/*,application/pdf"
-              onChange={handleFileChange}
-              multiple
-            />
-          </label>
-
-          <div className="flex flex-col flex-grow min-w-0">
-            <TextareaAutosize
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault()
-            if (input.trim() || file.length > 0) {
-              handleSubmit(e)
-            }
-          }
-              }}
-              onInput={() => {
-          const el = textareaRef.current
-          if (el) {
-            el.style.height = 'auto'
-            el.style.height = `${Math.min(el.scrollHeight, 200)}px`
-          }
-              }}
-              placeholder="Ask anything about your health."
-              className={`bg-transparent border-none outline-none text-sm px-2 py-3 resize-none
-          text-gray-800 dark:text-white
-          placeholder-gray-400 dark:placeholder-white/60
-          overflow-auto max-h-[250px]
-              `}
-              rows={1}
-            />
-
-            {file.length > 0 && file.map((f, idx) => (
-              <div key={idx} className="mt-2 flex items-center gap-2 bg-gray-100 dark:bg-gray-700 text-sm text-gray-700 dark:text-gray-100 px-3 py-1 rounded-full w-fit">
-          <FiPaperclip />
-          <span className="truncate max-w-[160px]">{f.name}</span>
-          <button
-            type="button"
-            className="hover:text-red-500"
-            onClick={handleRemoveFile}
-          >
-            <FiX />
-          </button>
-              </div>
-            ))}
-          </div>
-
-          <div
-            className={`flex flex-col ${input.trim().length > 0 || file.length > 0 ? 'self-end' : 'self-center'} h-full`}
-          >
-            <div className="flex gap-2 items-center">
-              {isThinking || isLoading ? (
-          <button
-            type="button"
-            onClick={handleAbort}
-            className="bg-red-600 hover:bg-red-700 rounded-full p-2 px-3.5 text-white transition"
-          >
-            <FaStop size={18} />
-          </button>
-              ) : (
-          <button
-            type="submit"
-            disabled={isLoading || isThinking || (!input.trim() && file.length === 0)}
-            className={`rounded-full p-2 px-3.5 text-white transition 
-          ${isLoading || isThinking || (!input.trim() && file.length === 0)
-                ? 'bg-gray-400 cursor-not-allowed'   // disabled style
-                : 'bg-gradient-to-r from-[#4385EF] to-[#FF68F5] hover:from-[#FF68F5] hover:to-[#4385EF]'  // gradient style
-              }`}
-          >
-            {isLoading ? '⏳' : '↑'}
-          </button>
-              )}
-            </div>
-          </div>
-        </form>
-      </div> */}
 
       <ToastContainer
         position="top-right"
