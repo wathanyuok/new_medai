@@ -70,7 +70,6 @@ export default function SignUpForm() {
     const password = (form.elements.namedItem('password') as HTMLInputElement).value;
     const confirmPassword = (form.elements.namedItem('confirmPassword') as HTMLInputElement).value;
 
-    // ✅ แก้ตรงนี้: ตัด fname, lname, usePrefix ออกจากเงื่อนไข validate
     if (!email || !phone || !password || !confirmPassword) {
       toast.error("กรุณาระบุข้อมูลให้ครบทุกช่องที่มี *");
       return;
