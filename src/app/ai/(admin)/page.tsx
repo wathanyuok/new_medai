@@ -13,8 +13,8 @@ export const metadata: Metadata = {
 const Page = () => {
   return (
     <div>
-      <UserInfoComponent />
-      {/* <Register /> */}
+      {/* <UserInfoComponent /> */}
+      <Register />
     </div>
   );
 }
