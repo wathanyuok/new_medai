@@ -41,11 +41,15 @@ const prefix = [
   { value: 'Associate Professor', label: 'Associate Professor' },
 ];
 
+
 export default function SignUpForm() {
   const [showPassword, setShowPassword] = useState(false);
-  const [usePrefix, setPrefix] = useState<string>("");
+  const [usePrefix, setPrefix] = useState<string>(""); // State for prefix
+  // const [regCode, setRegCode] = useState(""); // State for regCode
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
+  // const [message, setMessage] = useState('');
+  // const [isValid, setIsValid] = useState<boolean | null>(null); // null: ยังไม่เช็ค
 
   const router = useRouter();
 
@@ -58,22 +62,16 @@ export default function SignUpForm() {
     }
 
     const form = e.target as HTMLFormElement;
-
-    const fname = (form.elements.namedItem('fname') as HTMLInputElement)?.value.trim();
-    const lname = (form.elements.namedItem('lname') as HTMLInputElement)?.value.trim();
+    const fname = (form.elements.namedItem('fname') as HTMLInputElement).value.trim();
+    const lname = (form.elements.namedItem('lname') as HTMLInputElement).value.trim();
     const email = (form.elements.namedItem('email') as HTMLInputElement).value.trim();
-    const confirmEmail = (form.elements.namedItem('confirmEmail') as HTMLInputElement).value.trim();
     const phone = (form.elements.namedItem('phone') as HTMLInputElement).value.trim();
+    // const citizenId = (form.elements.namedItem('citizen_id') as HTMLInputElement).value.trim();
     const password = (form.elements.namedItem('password') as HTMLInputElement).value;
     const confirmPassword = (form.elements.namedItem('confirmPassword') as HTMLInputElement).value;
 
-    if (!email || !confirmEmail || !phone || !password || !confirmPassword) {
+    if (!email || !phone || !password || !confirmPassword) {
       toast.error("กรุณาระบุข้อมูลให้ครบทุกช่องที่มี *");
-      return;
-    }
-
-    if (email !== confirmEmail) {
-      toast.error("อีเมลและยืนยันอีเมลไม่ตรงกัน");
       return;
     }
 
@@ -87,18 +85,27 @@ export default function SignUpForm() {
       return;
     }
 
+    if (!isChecked) {
+      toast.error("กรุณายอมรับเงื่อนไขก่อนสมัคร");
+      return;
+    }
+
     const data = {
       co_email: email,
       co_password: password,
+      // co_citizen_id: citizenId,
       co_tel: phone,
       co_prefix: usePrefix || "ไม่ระบุ",
       co_fname: fname || "-",
       co_lname: lname || "-",
     };
 
-    console.log(data);
+
+    console.log(data)
+
 
     try {
+      // const token = '769167175e6a64fd8e8982b3381a591db1e8df29'
       const token = process.env.NEXT_PUBLIC_TK_PUBLIC_KEY;
       if (!token) {
         toast.error('Token is missing. Please check your environment variables.');
@@ -115,24 +122,25 @@ export default function SignUpForm() {
       });
 
       const result = await res.json();
-
       if (result.status === true) {
-        localStorage.setItem('co_email', email);
-        localStorage.setItem('co_tel', phone);
-        localStorage.setItem('otp_key', result.data.otp_key);
+        // toast.info('กรุณารอระบุ OTP จากระบบ');
+        localStorage.setItem('co_email',email)
+        localStorage.setItem('co_tel',phone)
+        localStorage.setItem('otp_key',result.data.otp_key)
         router.push('/ai/verify-otp');
       } else {
         toast.error(result.message || 'เกิดข้อผิดพลาด');
       }
-
     } catch (error) {
       console.error(error);
       toast.error('เกิดข้อผิดพลาด');
     }
   };
+  
 
   return (
     <div className="flex flex-col p-6 flex-1 lg:w-1/2 w-full overflow-y-auto no-scrollbar">
+
       <div className="flex flex-col justify-center flex-1 w-full max-w-md mx-auto">
         <div>
           <div className="mb-5 sm:mb-8">
@@ -143,12 +151,32 @@ export default function SignUpForm() {
               ระบุข้อมูลเพื่อสร้างบัญชีใหม่
             </p>
           </div>
-
           <div>
             <form onSubmit={handleSubmit}>
               <div className="space-y-5">
+                {/* ชื่อ-นามสกุล */}
+                {/* <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+                  <div>
+                    <Label>คำนำหน้าชื่อ <span className="text-error-500 ">*</span></Label>
+                    <Select options={prefix} onChange={setPrefix} placeholder="เลือกคำนำหน้าชื่อ" />
+                  </div>
+                  <div>
+                    <Label>ชื่อ <span className="text-error-500">*</span></Label>
+                    <Input type="text" name="fname" placeholder="ระบุชื่อ" />
+                  </div>
+                  <div>
+                    <Label>นามสกุล <span className="text-error-500">*</span></Label>
+                    <Input type="text" name="lname" placeholder="ระบุนามสกุล" />
+                  </div>
+                </div> */}
 
-                {/* อีเมล + ยืนยันอีเมล */}
+                {/* อีเมล */}
+                {/* <div>
+                  <Label>อีเมล <span className="text-error-500">*</span></Label>
+                  <Input type="email" name="email" placeholder="ระบุอีเมล" />
+                </div> */}
+
+                {/* อีเมล */}
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                   <div>
                     <Label>อีเมล <span className="text-error-500">*</span></Label>
@@ -164,18 +192,21 @@ export default function SignUpForm() {
                     <Input
                       type="email"
                       name="confirmEmail"
-                      placeholder="กรอกอีเมลอีกครั้ง"
+                      placeholder="กรอกอีเมลของคุณอีกครั้ง"
                     />
                   </div>
                 </div>
+
+
+
 
                 {/* เบอร์โทรศัพท์ */}
                 <div>
                   <Label>เบอร์โทรศัพท์ <span className="text-error-500">*</span></Label>
                   <Input type="tel" name="phone" placeholder="0xxxxxxxxx" />
                 </div>
-
-                {/* รหัสผ่าน + ยืนยันรหัสผ่าน */}
+                
+                {/* รหัสผ่าน */}
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                   <div>
                     <Label>รหัสผ่าน <span className="text-error-500">*</span></Label>
@@ -220,15 +251,9 @@ export default function SignUpForm() {
                     onChange={setIsChecked}
                   />
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    การสร้างบัญชีแสดงว่าคุณยอมรับ{" "}
-                    <span className="text-brand-500 hover:text-brand-600 dark:text-white/90 font-medium">
-                      <Link href="">ข้อตกลงการใช้บริการ</Link>
-                    </span>{" "}
-                    และ{" "}
-                    <span className="text-brand-500 hover:text-brand-600 dark:text-white/90 font-medium">
-                      <Link href="">นโยบายความเป็นส่วนตัว</Link>
-                    </span>{" "}
-                    ของเรา
+                    การสร้างบัญชีแสดงว่าคุณยอมรับ{' '}
+                    <span className="text-brand-500 hover:text-brand-600 dark:text-white/90 font-medium"><Link href="">ข้อตกลงการใช้บริการ</Link></span> และ{' '}
+                    <span className="text-brand-500 hover:text-brand-600 dark:text-white/90 font-medium"><Link href="" >นโยบายความเป็นส่วนตัว</Link></span> ของเรา
                   </p>
                 </div>
 
@@ -241,7 +266,6 @@ export default function SignUpForm() {
                     สมัครสมาชิก
                   </button>
                 </div>
-
               </div>
             </form>
 
@@ -259,8 +283,6 @@ export default function SignUpForm() {
           </div>
         </div>
       </div>
-
-      {/* Toast */}
       <ToastContainer
         position="top-right"
         autoClose={3000}
