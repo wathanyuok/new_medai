@@ -1,4 +1,5 @@
 'use client';
+
 import React, { useEffect, useState, useCallback } from 'react';
 import PageBreadcrumb from '@/components/common/PageBreadCrumb';
 import Image from 'next/image';
@@ -89,6 +90,7 @@ interface QueueItems {
     queue_item: Item[];
 }
 
+// Enhanced return type for fetchQueueData
 interface FetchQueueDataResult {
     queueData: QueueData;
     s3Urls: string[];
@@ -107,7 +109,7 @@ export default function HealthReportsPage() {
     const [shopImage, setShopImage] = useState<string>('');
     const [isMobile, setIsMobile] = useState<boolean>(false);
     const [isIOS, setIsIOS] = useState<boolean>(false);
-    const router = useRouter();
+    const router = useRouter()
 
     useEffect(() => {
         setLoading(true);
@@ -139,8 +141,9 @@ export default function HealthReportsPage() {
         setLoading(true);
         const token = getAccessToken();
         const user_data = await getCustomerDetails(token || '');
+
         setIsSynced(localStorage.getItem("is_online_data_sync") === "true")
-        
+
         try {
             const res = await fetch(
                 `${process.env.NEXT_PUBLIC_API_URL || 'https://shop.api-apsx.co/crm'}/customer/exa/history/${type}`,
@@ -159,7 +162,6 @@ export default function HealthReportsPage() {
                     }),
                 }
             );
-            
             const data = await res.json();
             if (data.status) {
                 const grouped = data.data.items.reduce((acc: QueueItems[], item: Item) => {
@@ -192,14 +194,18 @@ export default function HealthReportsPage() {
     function calculateAge(birthdate: string): number {
         const birth = new Date(birthdate);
         const today = new Date();
+
         let age = today.getFullYear() - birth.getFullYear();
         const monthDiff = today.getMonth() - birth.getMonth();
+
         if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
             age--;
         }
+
         return age;
     }
 
+    // Refactored to return all necessary data directly
     const fetchQueueData = async (queueId: number): Promise<FetchQueueDataResult | null> => {
         try {
             const token = getAccessToken();
@@ -209,6 +215,7 @@ export default function HealthReportsPage() {
             }
 
             const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'https://shop.api-apsx.co/crm'}/queue/check/lab/${queueId}`;
+
             const response = await fetch(apiUrl, {
                 method: 'GET',
                 headers: {
@@ -223,6 +230,7 @@ export default function HealthReportsPage() {
             }
 
             const result = await response.json();
+
             if (!result || !result.data) {
                 throw new Error('ไม่พบข้อมูลจาก API');
             }
@@ -230,8 +238,10 @@ export default function HealthReportsPage() {
             const data: QueueData = result.data;
             console.log('Queue data loaded:', data);
 
+            // Extract S3 URLs immediately
             const fileUrls = data.queue_file?.map(file => file.quef_path) || [];
 
+            // Load shop image
             let loadedShopImage = '';
             if (data.shop?.shop_image) {
                 try {
@@ -244,28 +254,36 @@ export default function HealthReportsPage() {
                 }
             }
 
+            // Update state for UI display
             setQueueData(data);
             setS3Urls(fileUrls);
             setShopImage(loadedShopImage);
 
+            // Return all data directly
             return {
                 queueData: data,
                 s3Urls: fileUrls,
                 shopImage: loadedShopImage
             };
+
         } catch (error) {
             console.error('Error in fetchQueueData:', error);
+
             const errorMessage = error instanceof Error
                 ? error.message
                 : 'เกิดข้อผิดพลาดในการโหลดข้อมูล';
+
             toast.error(errorMessage);
+
             setQueueData(null);
             setS3Urls([]);
             setShopImage('');
+
             return null;
         }
     };
 
+    // Refactored to accept all necessary data as parameters
     const handleMergePDFs = async (
         queueDataParam: QueueData,
         s3UrlsParam: string[],
@@ -277,8 +295,11 @@ export default function HealthReportsPage() {
         }
 
         setLoading(true);
+
         try {
+            // Use the passed parameters directly
             const allUrls = [...s3UrlsParam];
+
             const printData: PrintData = {
                 checks: queueDataParam.checks,
                 customer: queueDataParam.customer,
@@ -296,6 +317,7 @@ export default function HealthReportsPage() {
                 printData: printData,
                 shopImage: shopImageParam,
                 progressCallback: (prog: number, stat: string, step?: string) => {
+                    // Handle progress updates here
                 }
             };
 
@@ -308,6 +330,7 @@ export default function HealthReportsPage() {
                     accessKeyId: process.env.NEXT_PUBLIC_AWS_ACCESS_KEY_ID,
                     secretAccessKey: process.env.NEXT_PUBLIC_AWS_SECRET_ACCESS_KEY,
                 }
+
             });
 
             if (result.success && result.url) {
@@ -318,6 +341,7 @@ export default function HealthReportsPage() {
                 toast.error('เกิดข้อผิดพลาดในการสร้าง PDF');
                 return null;
             }
+
         } catch (error) {
             console.error('Error merging PDFs:', error);
             toast.error(`เกิดข้อผิดพลาด: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -327,17 +351,23 @@ export default function HealthReportsPage() {
         }
     };
 
+    // Refactored to use the returned data directly
     const handleAnalyze = async (queue_item: QueueItems) => {
         setAnalyzing(true);
+
         try {
+            // Fetch queue data and get all necessary data directly
             const fetchResult = await fetchQueueData(queue_item.queue_id);
+
             if (!fetchResult) {
                 toast.error('ไม่สามารถโหลดข้อมูลคิวได้');
                 return;
             }
 
+            // Use the fetched data directly without relying on state
             const { queueData: fetchedQueueData, s3Urls: fetchedS3Urls, shopImage: fetchedShopImage } = fetchResult;
 
+            // Pass all data directly to avoid state timing issues
             const rawPdfData = await handleMergePDFs(
                 fetchedQueueData,
                 fetchedS3Urls,
@@ -347,17 +377,18 @@ export default function HealthReportsPage() {
             if (rawPdfData && rawPdfData.s3Key) {
                 const encodedUrl = await getPresignedPDFUrl(rawPdfData.s3Key);
                 console.log('Presigned URL:', encodedUrl);
-                
-                localStorage.setItem("from_lab_analyst", "true");
-                localStorage.setItem("lab_link", String(encodedUrl!));
-                
-                // ✅ แก้ไขตรงนี้ - ใช้ router.push() อย่างถูกต้อง
-                router.push('/ai/aichat');
-                
+                localStorage.setItem("from_lab_analyst", "true")
+                localStorage.setItem("lab_link", String(encodedUrl!))
+                router.push(`/ai/aichat`)
+
+                // You can add navigation or further processing here
+                // router.push(`/ai-analysis?url=${encodeURIComponent(encodedUrl)}`);
+
                 toast.success('วิเคราะห์ข้อมูลสำเร็จ');
             } else {
                 toast.error('ไม่สามารถสร้าง PDF สำหรับการวิเคราะห์ได้');
             }
+
         } catch (error) {
             console.error('Error in handleAnalyze:', error);
             toast.error('เกิดข้อผิดพลาดในการวิเคราะห์ข้อมูล');
@@ -366,6 +397,7 @@ export default function HealthReportsPage() {
         }
     };
 
+    // Handler for when sync is successful
     const handleSyncSuccess = () => {
         fetchHistory(viewType);
         toast.success('เชื่อมต่อข้อมูลสำเร็จ');
@@ -384,22 +416,23 @@ export default function HealthReportsPage() {
                         draggable
                         style={{ zIndex: 99999 }}
                     />
+
                     <PageBreadcrumb
                         size="text-3xl"
                         oi={false}
                         text="text-[#F639BD]"
                         pageTitle="เอกสารผลตรวจจากคลินิก"
                     />
-                    
+
+                    {/* Tabs */}
                     {isSynced === true && (
                         <div className="flex mb-4 gap-3">
                             <button
                                 disabled={loading}
-                                className={`px-6 py-3 text-sm font-semibold rounded-xl transition-all duration-300 ease-out ${
-                                    viewType === 'lab'
-                                        ? 'text-white shadow-lg transform scale-[0.98] bg-[#F639BD]'
-                                        : 'text-slate-600 hover:text-slate-800 hover:bg-white/50'
-                                }`}
+                                className={`px-6 py-3 text-sm font-semibold rounded-xl transition-all duration-300 ease-out ${viewType === 'lab'
+                                    ? 'text-white shadow-lg transform scale-[0.98] bg-[#F639BD]'
+                                    : 'text-slate-600 hover:text-slate-800 hover:bg-white/50'
+                                    }`}
                                 onClick={() => setViewType('lab')}
                             >
                                 <span className="flex items-center justify-center gap-2">
@@ -407,13 +440,13 @@ export default function HealthReportsPage() {
                                     Lab
                                 </span>
                             </button>
+
                             <button
                                 disabled={loading}
-                                className={`px-6 py-3 text-sm font-semibold rounded-xl transition-all duration-300 ease-out ${
-                                    viewType === 'xray'
-                                        ? 'text-white shadow-lg transform scale-[0.98] bg-[#F639BD]'
-                                        : 'text-slate-600 hover:text-slate-800 hover:bg-white/50'
-                                }`}
+                                className={`px-6 py-3 text-sm font-semibold rounded-xl transition-all duration-300 ease-out ${viewType === 'xray'
+                                    ? 'text-white shadow-lg transform scale-[0.98] bg-[#F639BD]'
+                                    : 'text-slate-600 hover:text-slate-800 hover:bg-white/50'
+                                    }`}
                                 onClick={() => setViewType('xray')}
                             >
                                 <span className="flex items-center justify-center gap-2">
@@ -423,7 +456,7 @@ export default function HealthReportsPage() {
                             </button>
                         </div>
                     )}
-                    
+
                     <div className="grid grid-cols-1 gap-6 p-6">
                         <div className="lg:col-span-2 space-y-4">
                             {loading ? (
@@ -461,12 +494,14 @@ export default function HealthReportsPage() {
                                                         })}
                                                     </p>
                                                 </div>
+
                                                 <div className="mt-2 grid grid-cols-2 gap-y-1 text-base font-medium text-gray-800 w-fit">
                                                     <div className="text-[#4385EF]">คิวตรวจ</div>
                                                     <div className="text-gray-800">{item.que_code}</div>
                                                     <div className="text-[#4385EF]">แพทย์</div>
                                                     <div className="text-gray-800">{item.user_fullname}</div>
                                                 </div>
+
                                                 {viewType === "xray" ? (
                                                     <div className="mt-4">
                                                         <div className="flex items-center justify-between w-full p-3 bg-gray-50 rounded-lg">
@@ -474,6 +509,7 @@ export default function HealthReportsPage() {
                                                                 รายการตรวจ ({item.queue_item.length} รายการ)
                                                             </span>
                                                         </div>
+
                                                         <div className="mt-3 space-y-2">
                                                             {item.queue_item.map((sub_item, subIdx) => (
                                                                 <div
@@ -485,6 +521,7 @@ export default function HealthReportsPage() {
                                                                             <span className="font-medium text-gray-600">ชื่อการตรวจ:</span>
                                                                             <span className="ml-2 text-gray-800">{sub_item.chk_name}</span>
                                                                         </div>
+
                                                                         <div className="w-full flex justify-center mt-4 sm:mt-0 sm:justify-end px-5">
                                                                             <div className="flex flex-col sm:flex-row gap-4">
                                                                                 <a
@@ -533,9 +570,8 @@ export default function HealthReportsPage() {
                                                                             background:
                                                                                 'linear-gradient(100.66deg, #00A2FF 15.06%, #FF30DD 61.87%, #FF7098 84.34%)',
                                                                         }}
-                                                                        className={`text-sm px-4 py-3 w-38 rounded-3xl text-white transition-all duration-300 ${
-                                                                            analyzing ? 'opacity-50 cursor-not-allowed ' : 'hover:shadow-lg hover:scale-105'
-                                                                        }`}
+                                                                        className={`text-sm px-4 py-3 w-38 rounded-3xl text-white transition-all duration-300 ${analyzing ? 'opacity-50 cursor-not-allowed ' : 'hover:shadow-lg hover:scale-105'
+                                                                            }`}
                                                                         disabled={analyzing}
                                                                     >
                                                                         {analyzing ? 'กำลังส่งข้อมูล...' : 'วิเคราะห์ผลด้วย AI'}
@@ -573,6 +609,7 @@ export default function HealthReportsPage() {
             ) : (
                 <NoAccessModal />
             )}
+
             {analyzing && <AiLoading />}
         </>
     );
