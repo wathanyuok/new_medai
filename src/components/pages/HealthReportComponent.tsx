@@ -1,6 +1,5 @@
 'use client';
-
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import PageBreadcrumb from '@/components/common/PageBreadCrumb';
 import Image from 'next/image';
 import { toast, ToastContainer } from 'react-toastify';
@@ -106,8 +105,6 @@ export default function HealthReportsPage() {
     const [queueData, setQueueData] = useState<QueueData | null>(null);
     const [s3Urls, setS3Urls] = useState<string[]>([]);
     const [shopImage, setShopImage] = useState<string>('');
-    const [showPDFViewer, setShowPDFViewer] = useState(false);
-    const [pdfUrl, setPdfUrl] = useState<string | null>(null);
     const router = useRouter();
 
     useEffect(() => {
@@ -124,9 +121,8 @@ export default function HealthReportsPage() {
         setLoading(true);
         const token = getAccessToken();
         const user_data = await getCustomerDetails(token || '');
-
         setIsSynced(localStorage.getItem("is_online_data_sync") === "true")
-
+        
         try {
             const res = await fetch(
                 `${process.env.NEXT_PUBLIC_API_URL || 'https://shop.api-apsx.co/crm'}/customer/exa/history/${type}`,
@@ -145,6 +141,7 @@ export default function HealthReportsPage() {
                     }),
                 }
             );
+            
             const data = await res.json();
             if (data.status) {
                 const grouped = data.data.items.reduce((acc: QueueItems[], item: Item) => {
@@ -177,14 +174,11 @@ export default function HealthReportsPage() {
     function calculateAge(birthdate: string): number {
         const birth = new Date(birthdate);
         const today = new Date();
-
         let age = today.getFullYear() - birth.getFullYear();
         const monthDiff = today.getMonth() - birth.getMonth();
-
         if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
             age--;
         }
-
         return age;
     }
 
@@ -197,7 +191,6 @@ export default function HealthReportsPage() {
             }
 
             const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'https://shop.api-apsx.co/crm'}/queue/check/lab/${queueId}`;
-
             const response = await fetch(apiUrl, {
                 method: 'GET',
                 headers: {
@@ -212,7 +205,6 @@ export default function HealthReportsPage() {
             }
 
             const result = await response.json();
-
             if (!result || !result.data) {
                 throw new Error('ไม่พบข้อมูลจาก API');
             }
@@ -243,20 +235,15 @@ export default function HealthReportsPage() {
                 s3Urls: fileUrls,
                 shopImage: loadedShopImage
             };
-
         } catch (error) {
             console.error('Error in fetchQueueData:', error);
-
             const errorMessage = error instanceof Error
                 ? error.message
                 : 'เกิดข้อผิดพลาดในการโหลดข้อมูล';
-
             toast.error(errorMessage);
-
             setQueueData(null);
             setS3Urls([]);
             setShopImage('');
-
             return null;
         }
     };
@@ -272,10 +259,8 @@ export default function HealthReportsPage() {
         }
 
         setLoading(true);
-
         try {
             const allUrls = [...s3UrlsParam];
-
             const printData: PrintData = {
                 checks: queueDataParam.checks,
                 customer: queueDataParam.customer,
@@ -293,6 +278,7 @@ export default function HealthReportsPage() {
                 printData: printData,
                 shopImage: shopImageParam,
                 progressCallback: (prog: number, stat: string, step?: string) => {
+                    // Handle progress updates here
                 }
             };
 
@@ -305,7 +291,6 @@ export default function HealthReportsPage() {
                     accessKeyId: process.env.NEXT_PUBLIC_AWS_ACCESS_KEY_ID,
                     secretAccessKey: process.env.NEXT_PUBLIC_AWS_SECRET_ACCESS_KEY,
                 }
-
             });
 
             if (result.success && result.url) {
@@ -316,7 +301,6 @@ export default function HealthReportsPage() {
                 toast.error('เกิดข้อผิดพลาดในการสร้าง PDF');
                 return null;
             }
-
         } catch (error) {
             console.error('Error merging PDFs:', error);
             toast.error(`เกิดข้อผิดพลาด: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -326,12 +310,11 @@ export default function HealthReportsPage() {
         }
     };
 
+    // 🔧 แก้ไขส่วนนี้ - เปลี่ยนจาก template literal ที่ผิดรูปแบบ
     const handleAnalyze = async (queue_item: QueueItems) => {
         setAnalyzing(true);
-
         try {
             const fetchResult = await fetchQueueData(queue_item.queue_id);
-
             if (!fetchResult) {
                 toast.error('ไม่สามารถโหลดข้อมูลคิวได้');
                 return;
@@ -348,16 +331,17 @@ export default function HealthReportsPage() {
             if (rawPdfData && rawPdfData.s3Key) {
                 const encodedUrl = await getPresignedPDFUrl(rawPdfData.s3Key);
                 console.log('Presigned URL:', encodedUrl);
+                
                 localStorage.setItem("from_lab_analyst", "true");
                 localStorage.setItem("lab_link", String(encodedUrl!));
                 
-                // ใช้สถานะ showPDFViewer เพื่อแสดง iframe PDF ใน component เดียวกัน
-                setPdfUrl(String(encodedUrl));
-                setShowPDFViewer(true);
+                // ✅ แก้ไขตรงนี้ - ใช้ router.push() อย่างถูกต้อง
+                router.push('/ai/aichat');
+                
+                toast.success('วิเคราะห์ข้อมูลสำเร็จ');
             } else {
                 toast.error('ไม่สามารถสร้าง PDF สำหรับการวิเคราะห์ได้');
             }
-
         } catch (error) {
             console.error('Error in handleAnalyze:', error);
             toast.error('เกิดข้อผิดพลาดในการวิเคราะห์ข้อมูล');
@@ -371,54 +355,6 @@ export default function HealthReportsPage() {
         toast.success('เชื่อมต่อข้อมูลสำเร็จ');
     };
 
-    const handleBackFromPDF = () => {
-        setShowPDFViewer(false);
-        setPdfUrl(null);
-    };
-
-    if (showPDFViewer) {
-        return (
-            <>
-                <ToastContainer
-                    position="top-right"
-                    autoClose={3000}
-                    newestOnTop
-                    closeOnClick
-                    pauseOnHover
-                    draggable
-                    style={{ zIndex: 99999 }}
-                />
-
-                <div className="flex flex-col h-screen bg-gray-50">
-                    <header className="p-4 shadow bg-white flex items-center justify-between">
-                        <button
-                            onClick={handleBackFromPDF}
-                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-                        >
-                            กลับ
-                        </button>
-                        <h1 className="text-xl font-semibold text-gray-700">ดูไฟล์ผลตรวจ (PDF)</h1>
-                        <div style={{ width: 80 }}></div>
-                    </header>
-                    <main className="flex-grow p-4">
-                        {pdfUrl ? (
-                            <iframe
-                                src={pdfUrl}
-                                style={{ width: '100%', height: '100%' }}
-                                frameBorder="0"
-                                title="PDF Viewer"
-                                sandbox="allow-scripts allow-same-origin allow-forms"
-                            />
-                        ) : (
-                            <p className="text-center text-gray-500 mt-20">กำลังโหลดไฟล์ PDF...</p>
-                        )}
-                    </main>
-                </div>
-            </>
-        );
-    }
-
-    // แสดงหน้ารายการผลตรวจตามโค้ดเดิมเมื่อไม่อยู่ในโหมดดู PDF
     return (
         <>
             {isLogin ? (
@@ -432,23 +368,22 @@ export default function HealthReportsPage() {
                         draggable
                         style={{ zIndex: 99999 }}
                     />
-
                     <PageBreadcrumb
                         size="text-3xl"
                         oi={false}
                         text="text-[#F639BD]"
                         pageTitle="เอกสารผลตรวจจากคลินิก"
                     />
-
-                    {/* Tabs */}
+                    
                     {isSynced === true && (
                         <div className="flex mb-4 gap-3">
                             <button
                                 disabled={loading}
-                                className={`px-6 py-3 text-sm font-semibold rounded-xl transition-all duration-300 ease-out ${viewType === 'lab'
-                                    ? 'text-white shadow-lg transform scale-[0.98] bg-[#F639BD]'
-                                    : 'text-slate-600 hover:text-slate-800 hover:bg-white/50'
-                                    }`}
+                                className={`px-6 py-3 text-sm font-semibold rounded-xl transition-all duration-300 ease-out ${
+                                    viewType === 'lab'
+                                        ? 'text-white shadow-lg transform scale-[0.98] bg-[#F639BD]'
+                                        : 'text-slate-600 hover:text-slate-800 hover:bg-white/50'
+                                }`}
                                 onClick={() => setViewType('lab')}
                             >
                                 <span className="flex items-center justify-center gap-2">
@@ -456,13 +391,13 @@ export default function HealthReportsPage() {
                                     Lab
                                 </span>
                             </button>
-
                             <button
                                 disabled={loading}
-                                className={`px-6 py-3 text-sm font-semibold rounded-xl transition-all duration-300 ease-out ${viewType === 'xray'
-                                    ? 'text-white shadow-lg transform scale-[0.98] bg-[#F639BD]'
-                                    : 'text-slate-600 hover:text-slate-800 hover:bg-white/50'
-                                    }`}
+                                className={`px-6 py-3 text-sm font-semibold rounded-xl transition-all duration-300 ease-out ${
+                                    viewType === 'xray'
+                                        ? 'text-white shadow-lg transform scale-[0.98] bg-[#F639BD]'
+                                        : 'text-slate-600 hover:text-slate-800 hover:bg-white/50'
+                                }`}
                                 onClick={() => setViewType('xray')}
                             >
                                 <span className="flex items-center justify-center gap-2">
@@ -472,7 +407,7 @@ export default function HealthReportsPage() {
                             </button>
                         </div>
                     )}
-
+                    
                     <div className="grid grid-cols-1 gap-6 p-6">
                         <div className="lg:col-span-2 space-y-4">
                             {loading ? (
@@ -510,14 +445,12 @@ export default function HealthReportsPage() {
                                                         })}
                                                     </p>
                                                 </div>
-
                                                 <div className="mt-2 grid grid-cols-2 gap-y-1 text-base font-medium text-gray-800 w-fit">
                                                     <div className="text-[#4385EF]">คิวตรวจ</div>
                                                     <div className="text-gray-800">{item.que_code}</div>
                                                     <div className="text-[#4385EF]">แพทย์</div>
                                                     <div className="text-gray-800">{item.user_fullname}</div>
                                                 </div>
-
                                                 {viewType === "xray" ? (
                                                     <div className="mt-4">
                                                         <div className="flex items-center justify-between w-full p-3 bg-gray-50 rounded-lg">
@@ -525,7 +458,6 @@ export default function HealthReportsPage() {
                                                                 รายการตรวจ ({item.queue_item.length} รายการ)
                                                             </span>
                                                         </div>
-
                                                         <div className="mt-3 space-y-2">
                                                             {item.queue_item.map((sub_item, subIdx) => (
                                                                 <div
@@ -537,9 +469,9 @@ export default function HealthReportsPage() {
                                                                             <span className="font-medium text-gray-600">ชื่อการตรวจ:</span>
                                                                             <span className="ml-2 text-gray-800">{sub_item.chk_name}</span>
                                                                         </div>
-
                                                                         <div className="w-full flex justify-center mt-4 sm:mt-0 sm:justify-end px-5">
                                                                             <div className="flex flex-col sm:flex-row gap-4">
+                                                                                {/* ✅ แก้ไข href ให้ใช้ string ปกติ */}
                                                                                 <a
                                                                                     href={`print/${viewType}/${item.queue_id}?check_id=${sub_item.id}`}
                                                                                     className="text-sm text-[#4385EF] text-center px-4 py-3 rounded-3xl w-38 border border-[#4385EF] hover:bg-[#4385EF] hover:text-white transition-all duration-300"
@@ -557,6 +489,7 @@ export default function HealthReportsPage() {
                                                     <>
                                                         <div className="w-full flex justify-center mt-4 sm:mt-0 sm:justify-end px-5">
                                                             <div className="flex flex-col sm:flex-row gap-4">
+                                                                {/* ✅ แก้ไข href ให้ใช้ string ปกติ */}
                                                                 <a
                                                                     href={`print/${viewType}/${item.queue_id}`}
                                                                     className="text-sm text-[#4385EF] text-center px-4 py-3 rounded-3xl w-38 border border-[#4385EF] hover:bg-[#4385EF] hover:text-white transition-all duration-300"
@@ -570,8 +503,9 @@ export default function HealthReportsPage() {
                                                                             background:
                                                                                 'linear-gradient(100.66deg, #00A2FF 15.06%, #FF30DD 61.87%, #FF7098 84.34%)',
                                                                         }}
-                                                                        className={`text-sm px-4 py-3 w-38 rounded-3xl text-white transition-all duration-300 ${analyzing ? 'opacity-50 cursor-not-allowed ' : 'hover:shadow-lg hover:scale-105'
-                                                                            }`}
+                                                                        className={`text-sm px-4 py-3 w-38 rounded-3xl text-white transition-all duration-300 ${
+                                                                            analyzing ? 'opacity-50 cursor-not-allowed ' : 'hover:shadow-lg hover:scale-105'
+                                                                        }`}
                                                                         disabled={analyzing}
                                                                     >
                                                                         {analyzing ? 'กำลังส่งข้อมูล...' : 'วิเคราะห์ผลด้วย AI'}
@@ -609,7 +543,6 @@ export default function HealthReportsPage() {
             ) : (
                 <NoAccessModal />
             )}
-
             {analyzing && <AiLoading />}
         </>
     );
