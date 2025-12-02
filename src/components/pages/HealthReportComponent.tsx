@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import PageBreadcrumb from '@/components/common/PageBreadCrumb';
 import Image from 'next/image';
 import { toast, ToastContainer } from 'react-toastify';
@@ -107,6 +107,7 @@ export default function HealthReportsPage() {
     const [queueData, setQueueData] = useState<QueueData | null>(null);
     const [s3Urls, setS3Urls] = useState<string[]>([]);
     const [shopImage, setShopImage] = useState<string>('');
+    const [reportUrl, setReportUrl] = useState<string | null>(null); // <= ใช้เปิด overlay PDF
     const router = useRouter()
 
     useEffect(() => {
@@ -309,8 +310,8 @@ export default function HealthReportsPage() {
                 s3Config: {
                     bucketName: 'refer-img',
                     region: 'ap-southeast-1',
-                    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-                    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+                    accessKeyId: process.env.NEXT_PUBLIC_AWS_ACCESS_KEY_ID,
+                    secretAccessKey: process.env.NEXT_PUBLIC_AWS_SECRET_ACCESS_KEY,
                 }
 
             });
@@ -377,6 +378,15 @@ export default function HealthReportsPage() {
         } finally {
             setAnalyzing(false);
         }
+    };
+
+    // ฟังก์ชันเปิด overlay PDF (ไฟล์เดียว ไม่เปลี่ยน route)
+    const openReport = (type: 'lab' | 'xray', queueId: number, checkId?: number) => {
+        const path = checkId
+            ? `/print/${type}/${queueId}?check_id=${checkId}`
+            : `/print/${type}/${queueId}`;
+
+        setReportUrl(path); // ให้ iframe ใช้ path นี้
     };
 
     // Handler for when sync is successful
@@ -506,13 +516,13 @@ export default function HealthReportsPage() {
 
                                                                         <div className="w-full flex justify-center mt-4 sm:mt-0 sm:justify-end px-5">
                                                                             <div className="flex flex-col sm:flex-row gap-4">
-                                                                                <a
-                                                                                    href={`print/${viewType}/${item.queue_id}?check_id=${sub_item.id}`}
-                                                                                    target="_blank"
+                                                                                {/* ใช้ overlay viewer */}
+                                                                                <button
+                                                                                    onClick={() => openReport(viewType, item.queue_id, sub_item.id)}
                                                                                     className="text-sm text-[#4385EF] text-center px-4 py-3 rounded-3xl w-38 border border-[#4385EF] hover:bg-[#4385EF] hover:text-white transition-all duration-300"
                                                                                 >
                                                                                     ดูผลตรวจ
-                                                                                </a>
+                                                                                </button>
                                                                             </div>
                                                                         </div>
                                                                     </div>
@@ -524,13 +534,13 @@ export default function HealthReportsPage() {
                                                     <>
                                                         <div className="w-full flex justify-center mt-4 sm:mt-0 sm:justify-end px-5">
                                                             <div className="flex flex-col sm:flex-row gap-4">
-                                                                <a
-                                                                    href={`print/${viewType}/${item.queue_id}`}
-                                                                    target="_blank"
+                                                                {/* ใช้ overlay viewer */}
+                                                                <button
+                                                                    onClick={() => openReport(viewType, item.queue_id)}
                                                                     className="text-sm text-[#4385EF] text-center px-4 py-3 rounded-3xl w-38 border border-[#4385EF] hover:bg-[#4385EF] hover:text-white transition-all duration-300"
                                                                 >
                                                                     ดูผลตรวจ
-                                                                </a>
+                                                                </button>
                                                                 {viewType === "lab" && (
                                                                     <button
                                                                         onClick={() => handleAnalyze(item)}
@@ -579,6 +589,30 @@ export default function HealthReportsPage() {
             )}
 
             {analyzing && <AiLoading />}
+
+            {/* 🔴 Overlay PDF Viewer (ไฟล์เดียว) */}
+            {reportUrl && (
+                <div className="fixed inset-0 z-[99998] flex flex-col bg-black/60">
+                    <div className="bg-white flex items-center justify-between px-4 py-2 shadow-md">
+                        <button
+                            onClick={() => setReportUrl(null)}
+                            className="px-3 py-1 text-sm rounded-full border border-gray-300 text-gray-700 hover:bg-gray-100"
+                        >
+                            ← ปิดเอกสาร
+                        </button>
+                        <span className="text-sm font-medium text-gray-800">
+                            เอกสารผลตรวจจากคลินิก
+                        </span>
+                        <div className="w-16" /> {/* ช่องว่างให้ดูบาลานซ์ */}
+                    </div>
+
+                    <iframe
+                        src={reportUrl}
+                        className="flex-1 w-full bg-white"
+                        title="รายงานผลตรวจ"
+                    />
+                </div>
+            )}
         </>
     );
 }
