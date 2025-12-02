@@ -293,7 +293,6 @@ export default function HealthReportsPage() {
                 printData: printData,
                 shopImage: shopImageParam,
                 progressCallback: (prog: number, stat: string, step?: string) => {
-                    // คุณสามารถใส่ logic แสดงสถานะการโหลดได้ที่นี่
                 }
             };
 
@@ -373,12 +372,10 @@ export default function HealthReportsPage() {
     };
 
     const handleBackFromPDF = () => {
-        // ซ่อน PDF viewer และกลับไปแสดงหน้ารายการตามเดิม
         setShowPDFViewer(false);
         setPdfUrl(null);
     };
 
-    // ถ้า showPDFViewer เป็น true แสดงใบ PDF พร้อมปุ่ม Back ส่วนนี้ช่วยแก้ปัญหา back บน iOS
     if (showPDFViewer) {
         return (
             <>
