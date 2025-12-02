@@ -32,22 +32,10 @@ export default function MultiPDFMergePage(queue_id: any) {
     );
   };
 
-  // ✅ แก้ไข: ใช้ window.open() แทน window.location.href เพื่อให้ back button ทำงาน
+  // ✅ แก้ไข: ใช้ <a> tag click เพื่อหลีกเลี่ยง popup blocker และให้ back button ทำงาน
   const openPdfSafe = (pdfUrl: string) => {
-    if (isMobile) {
-      // ใช้ window.open() เพื่อเปิดใน tab ใหม่ (ไม่ replace ประวัติ)
-      const newWindow = window.open(pdfUrl, '_blank');
-      
-      // Fallback: ถ้า popup blocker บล็อก ให้ลองใช้ location.href
-      if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-        // แสดงข้อความแนะนำให้ user อนุญาต popup
-        alert('กรุณาอนุญาตการเปิดหน้าต่างใหม่ (popup) เพื่อดู PDF');
-        window.location.href = pdfUrl;
-      }
-      return;
-    }
-    
-    // Desktop: ใช้วิธีเดิม
+    // ใช้วิธีเดียวกันทั้ง mobile และ desktop
+    // สร้าง <a> element แล้วจำลองการคลิก (ไม่โดน popup blocker)
     const a = document.createElement('a');
     a.href = pdfUrl;
     a.target = '_blank';
