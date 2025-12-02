@@ -105,6 +105,8 @@ export default function HealthReportsPage() {
     const [queueData, setQueueData] = useState<QueueData | null>(null);
     const [s3Urls, setS3Urls] = useState<string[]>([]);
     const [shopImage, setShopImage] = useState<string>('');
+    const [isMobile, setIsMobile] = useState<boolean>(false);
+    const [isIOS, setIsIOS] = useState<boolean>(false);
     const router = useRouter();
 
     useEffect(() => {
@@ -116,6 +118,22 @@ export default function HealthReportsPage() {
             fetchHistory(viewType);
         }
     }, [viewType]);
+
+    useEffect(() => {
+        const detect = () => {
+            try {
+                const ua = navigator.userAgent || '';
+                setIsIOS(/iPad|iPhone|iPod/.test(ua));
+                setIsMobile(/Mobi|Android/i.test(ua));
+            } catch (e) {
+                // SSR or unexpected, keep defaults
+            }
+        };
+
+        detect();
+        window.addEventListener('resize', detect);
+        return () => window.removeEventListener('resize', detect);
+    }, []);
 
     const fetchHistory = async (type: 'lab' | 'xray') => {
         setLoading(true);
@@ -471,6 +489,14 @@ export default function HealthReportsPage() {
                                                                             <div className="flex flex-col sm:flex-row gap-4">
                                                                                 <a
                                                                                     href={`print/${viewType}/${item.queue_id}?check_id=${sub_item.id}`}
+                                                                                    target={!isMobile && !isIOS ? "_blank" : undefined}
+                                                                                    rel={!isMobile && !isIOS ? "noopener noreferrer" : undefined}
+                                                                                    onClick={(e) => {
+                                                                                        if (isMobile || isIOS) {
+                                                                                            e.preventDefault();
+                                                                                            router.push(`print/${viewType}/${item.queue_id}?check_id=${sub_item.id}`);
+                                                                                        }
+                                                                                    }}
                                                                                     className="text-sm text-[#4385EF] text-center px-4 py-3 rounded-3xl w-38 border border-[#4385EF] hover:bg-[#4385EF] hover:text-white transition-all duration-300"
                                                                                 >
                                                                                     ดูผลตรวจ
@@ -488,6 +514,14 @@ export default function HealthReportsPage() {
                                                             <div className="flex flex-col sm:flex-row gap-4">
                                                                 <a
                                                                     href={`print/${viewType}/${item.queue_id}`}
+                                                                    target={!isMobile && !isIOS ? "_blank" : undefined}
+                                                                    rel={!isMobile && !isIOS ? "noopener noreferrer" : undefined}
+                                                                    onClick={(e) => {
+                                                                        if (isMobile || isIOS) {
+                                                                            e.preventDefault();
+                                                                            router.push(`print/${viewType}/${item.queue_id}`);
+                                                                        }
+                                                                    }}
                                                                     className="text-sm text-[#4385EF] text-center px-4 py-3 rounded-3xl w-38 border border-[#4385EF] hover:bg-[#4385EF] hover:text-white transition-all duration-300"
                                                                 >
                                                                     ดูผลตรวจ
