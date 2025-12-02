@@ -32,10 +32,9 @@ export default function MultiPDFMergePage(queue_id: any) {
     );
   };
 
-  // ✅ แก้ไข: ใช้ <a> tag click เพื่อหลีกเลี่ยง popup blocker และให้ back button ทำงาน
+  // ✅ แก้ไข: บน mobile แสดง PDF ใน iframe เลย ไม่ต้องเปิดหน้าใหม่
   const openPdfSafe = (pdfUrl: string) => {
-    // ใช้วิธีเดียวกันทั้ง mobile และ desktop
-    // สร้าง <a> element แล้วจำลองการคลิก (ไม่โดน popup blocker)
+    // Desktop: เปิด new tab
     const a = document.createElement('a');
     a.href = pdfUrl;
     a.target = '_blank';
@@ -467,11 +466,7 @@ export default function MultiPDFMergePage(queue_id: any) {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(url);
 
-      // ✅ เปลี่ยนวิธีเปิด PDF บนมือถือ
-      if (isMobile) {
-        openPdfSafe(url); // ใช้ window.open() แทน window.location.href
-        return;
-      }
+      // ✅ แก้ไข: mobile ก็แสดง iframe เหมือน desktop
       setShowPreview(true);
       setStatus('สร้าง Lab Report PDF เสร็จสมบูรณ์');
       return;
@@ -674,12 +669,7 @@ export default function MultiPDFMergePage(queue_id: any) {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(url);
 
-      // ✅ เปลี่ยนวิธีเปิด PDF บนมือถือ
-      if (isMobile) {
-        openPdfSafe(url); // ใช้ window.open() แทน window.location.href
-        return;
-      }
-
+      // ✅ แก้ไข: mobile ก็แสดง iframe เหมือน desktop
       setShowPreview(true);
       setProgress(100);
       setStatus(
@@ -704,11 +694,7 @@ export default function MultiPDFMergePage(queue_id: any) {
 
     setPreviewUrl(url);
 
-    // ✅ เปลี่ยนวิธีเปิด PDF บนมือถือ
-    if (isMobile) {
-      openPdfSafe(url); // ใช้ window.open() แทน window.location.href
-      return;
-    }
+    // ✅ แก้ไข: mobile ก็แสดง iframe เหมือน desktop
     setShowPreview(true);
     setStatus('แสดงตัวอย่าง jsPDF (A4) ด้านล่าง');
   };
@@ -776,18 +762,31 @@ export default function MultiPDFMergePage(queue_id: any) {
             </div>
           </div>
 
-          {/* PDF Viewer (Desktop เท่านั้น) */}
+          {/* PDF Viewer (แสดงทั้ง Desktop และ Mobile) */}
           <div className="border border-gray-200 sm:border-2 rounded-lg overflow-hidden">
-            {mounted && !isMobile && (
+            {mounted && (
               <iframe
                 src={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1&zoom=page-fit`}
                 width="100%"
                 height="100%"
-                className="border-0 sm:h-[600px] md:h-[700px] lg:h-[800px]"
+                className="border-0 h-[500px] sm:h-[600px] md:h-[700px] lg:h-[800px]"
                 title="PDF Preview"
               />
             )}
           </div>
+
+          {/* ปุ่มเปิด New Tab สำหรับ Mobile (Optional) */}
+          {isMobile && (
+            <div className="mt-3 flex justify-center">
+              <button
+                onClick={() => openPdfSafe(previewUrl)}
+                className="px-4 py-2 bg-purple-600 text-white text-sm rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors"
+              >
+                <span className="inline-block mr-1">🔗</span>
+                เปิดใน Tab ใหม่
+              </button>
+            </div>
+          )}
 
           {/* Instructions */}
           <div className="mt-3 p-2 sm:p-3 bg-gray-50 rounded text-xs sm:text-sm text-gray-600">
@@ -796,10 +795,10 @@ export default function MultiPDFMergePage(queue_id: any) {
               {isMobile ? (
                 <>
                   <span className="block mt-1 text-blue-600">
-                    📱 <strong>Mobile:</strong> PDF จะเปิดใน Tab ใหม่ คุณสามารถกด Back ได้ตามปกติ
+                    📱 <strong>Mobile:</strong> ดู PDF ได้ในหน้านี้เลย หรือกดปุ่ม "เปิดใน Tab ใหม่" ด้านบน
                   </span>
-                  <span className="block mt-1 text-purple-600">
-                    🔗 <strong>เคล็ดลับ:</strong> หากต้องการดาวน์โหลด กดปุ่ม "ดาวน์โหลด PDF" ด้านบน
+                  <span className="block mt-1 text-green-600">
+                    ✅ <strong>Back Button:</strong> สามารถกด Back ได้ตามปกติ ไม่สูญเสียข้อมูล
                   </span>
                 </>
               ) : (
