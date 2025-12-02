@@ -278,6 +278,7 @@ export default function HealthReportsPage() {
                 printData: printData,
                 shopImage: shopImageParam,
                 progressCallback: (prog: number, stat: string, step?: string) => {
+                    // Handle progress updates here
                 }
             };
 
@@ -309,6 +310,7 @@ export default function HealthReportsPage() {
         }
     };
 
+    // 🔧 แก้ไขส่วนนี้ - เปลี่ยนจาก template literal ที่ผิดรูปแบบ
     const handleAnalyze = async (queue_item: QueueItems) => {
         setAnalyzing(true);
         try {
@@ -469,12 +471,13 @@ export default function HealthReportsPage() {
                                                                         </div>
                                                                         <div className="w-full flex justify-center mt-4 sm:mt-0 sm:justify-end px-5">
                                                                             <div className="flex flex-col sm:flex-row gap-4">
-                                                                                <a
-                                                                                    href={`print/${viewType}/${item.queue_id}?check_id=${sub_item.id}`}
+                                                                                {/* ✅ ใช้ button + router.push แทน <a> เพื่อรองรับ back button บน iPhone */}
+                                                                                <button
+                                                                                    onClick={() => router.push(`/print/${viewType}/${item.queue_id}?check_id=${sub_item.id}`)}
                                                                                     className="text-sm text-[#4385EF] text-center px-4 py-3 rounded-3xl w-38 border border-[#4385EF] hover:bg-[#4385EF] hover:text-white transition-all duration-300"
                                                                                 >
                                                                                     ดูผลตรวจ
-                                                                                </a>
+                                                                                </button>
                                                                             </div>
                                                                         </div>
                                                                     </div>
@@ -486,12 +489,13 @@ export default function HealthReportsPage() {
                                                     <>
                                                         <div className="w-full flex justify-center mt-4 sm:mt-0 sm:justify-end px-5">
                                                             <div className="flex flex-col sm:flex-row gap-4">
-                                                                <a
-                                                                    href={`print/${viewType}/${item.queue_id}`}
+                                                                {/* ✅ ใช้ button + router.push แทน <a> เพื่อรองรับ back button บน iPhone */}
+                                                                <button
+                                                                    onClick={() => router.push(`/print/${viewType}/${item.queue_id}`)}
                                                                     className="text-sm text-[#4385EF] text-center px-4 py-3 rounded-3xl w-38 border border-[#4385EF] hover:bg-[#4385EF] hover:text-white transition-all duration-300"
                                                                 >
                                                                     ดูผลตรวจ
-                                                                </a>
+                                                                </button>
                                                                 {viewType === "lab" && (
                                                                     <button
                                                                         onClick={() => handleAnalyze(item)}
