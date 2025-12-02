@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import PageBreadcrumb from '@/components/common/PageBreadCrumb';
 import Image from 'next/image';
+import Link from 'next/link';
 import { toast, ToastContainer } from 'react-toastify';
 import { checkAccessToken, getAccessToken, getCustomerDetails } from "@/utils/checkAuthen";
 import NoAccessModal from "@/components/auth/NoAccessModal";
@@ -471,13 +472,13 @@ export default function HealthReportsPage() {
                                                                         </div>
                                                                         <div className="w-full flex justify-center mt-4 sm:mt-0 sm:justify-end px-5">
                                                                             <div className="flex flex-col sm:flex-row gap-4">
-                                                                                {/* ✅ เพิ่ม / ข้างหน้า path */}
-                                                                                <button
-                                                                                    onClick={() => router.push(`/print/${viewType}/${item.queue_id}?check_id=${sub_item.id}`)}
-                                                                                    className="text-sm text-[#4385EF] text-center px-4 py-3 rounded-3xl w-38 border border-[#4385EF] hover:bg-[#4385EF] hover:text-white transition-all duration-300"
+                                                                                {/* ✅ ใช้ Link component ของ Next.js แทน */}
+                                                                                <Link
+                                                                                    href={`/print/${viewType}/${item.queue_id}?check_id=${sub_item.id}`}
+                                                                                    className="text-sm text-[#4385EF] text-center px-4 py-3 rounded-3xl w-38 border border-[#4385EF] hover:bg-[#4385EF] hover:text-white transition-all duration-300 inline-block"
                                                                                 >
                                                                                     ดูผลตรวจ
-                                                                                </button>
+                                                                                </Link>
                                                                             </div>
                                                                         </div>
                                                                     </div>
