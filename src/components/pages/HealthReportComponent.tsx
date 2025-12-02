@@ -1,4 +1,4 @@
- 'use client';
+'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
 import PageBreadcrumb from '@/components/common/PageBreadCrumb';
@@ -107,6 +107,7 @@ export default function HealthReportsPage() {
     const [queueData, setQueueData] = useState<QueueData | null>(null);
     const [s3Urls, setS3Urls] = useState<string[]>([]);
     const [shopImage, setShopImage] = useState<string>('');
+    const [isMobile, setIsMobile] = useState<boolean>(false);
     const router = useRouter()
 
     useEffect(() => {
@@ -118,6 +119,20 @@ export default function HealthReportsPage() {
             fetchHistory(viewType);
         }
     }, [viewType]);
+
+    useEffect(() => {
+        const checkMobile = () => {
+            try {
+                setIsMobile(window.innerWidth <= 768);
+            } catch (e) {
+                // ignore during SSR or unexpected errors
+            }
+        };
+
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
 
     const fetchHistory = async (type: 'lab' | 'xray') => {
         setLoading(true);
@@ -507,7 +522,9 @@ export default function HealthReportsPage() {
                                                                         <div className="w-full flex justify-center mt-4 sm:mt-0 sm:justify-end px-5">
                                                                             <div className="flex flex-col sm:flex-row gap-4">
                                                                                 <a
-                                                                                    href={`print/${viewType}/${item.queue_id}?check_id=${sub_item.id}`}
+                                                                                    href={`ai/print/${viewType}/${item.queue_id}?check_id=${sub_item.id}`}
+                                                                                    target={!isMobile ? "_blank" : undefined}
+                                                                                    onClick={isMobile ? (e) => { e.preventDefault(); router.push(`ai/print/${viewType}/${item.queue_id}?check_id=${sub_item.id}`); } : undefined}
                                                                                     className="text-sm text-[#4385EF] text-center px-4 py-3 rounded-3xl w-38 border border-[#4385EF] hover:bg-[#4385EF] hover:text-white transition-all duration-300"
                                                                                 >
                                                                                     ดูผลตรวจ
@@ -524,7 +541,9 @@ export default function HealthReportsPage() {
                                                         <div className="w-full flex justify-center mt-4 sm:mt-0 sm:justify-end px-5">
                                                             <div className="flex flex-col sm:flex-row gap-4">
                                                                 <a
-                                                                    href={`print/${viewType}/${item.queue_id}`}
+                                                                    href={`/ai/print/${viewType}/${item.queue_id}`}
+                                                                    target={!isMobile ? "_blank" : undefined}
+                                                                    onClick={isMobile ? (e) => { e.preventDefault(); router.push(`/ai/print/${viewType}/${item.queue_id}`); } : undefined}
                                                                     className="text-sm text-[#4385EF] text-center px-4 py-3 rounded-3xl w-38 border border-[#4385EF] hover:bg-[#4385EF] hover:text-white transition-all duration-300"
                                                                 >
                                                                     ดูผลตรวจ
