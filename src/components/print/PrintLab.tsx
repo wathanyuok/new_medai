@@ -39,17 +39,13 @@ export default function MultiPDFMergePage(queue_id: any) {
     return /iPhone|iPad|iPod/i.test(navigator.userAgent);
   };
 
-  // ✅ แก้ไข: ให้ทั้ง iOS และ Android ใช้วิธีเดียวกัน (replace หน้า)
   const openPdfSafe = (pdfUrl: string) => {
     console.log('📱 Opening PDF for mobile...');
     console.log('🍎 iOS:', isIOSDevice, '🤖 Android:', !isIOSDevice);
-    
-    // ทั้ง iOS และ Android: ใช้ window.location.href (replace หน้าปัจจุบัน)
-    // หลังกด back จาก PDF จะกลับไปหน้าก่อนหน้านี้เลย
+   
     window.location.href = pdfUrl;
   };
 
-  // Cleanup URL object เมื่อ component unmount
   useEffect(() => {
     return () => {
       if (previewUrl) {
@@ -445,7 +441,6 @@ export default function MultiPDFMergePage(queue_id: any) {
     return doc;
   };
 
-  // แปลง textarea → array ของ URLs (คงไว้เพื่อรองรับ)
   const parseUrlsFromText = (urlsText: string): string[] => {
     return urlsText
       .split('\n')
@@ -472,13 +467,11 @@ export default function MultiPDFMergePage(queue_id: any) {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(url);
 
-      // Mobile: ไปหน้า PDF เลย (ไม่มี preview)
       if (isMobile) {
         window.location.href = url;
         return;
       }
       
-      // Desktop: แสดง preview
       setShowPreview(true);
       setStatus('สร้าง Lab Report PDF เสร็จสมบูรณ์');
       return;
@@ -563,7 +556,6 @@ export default function MultiPDFMergePage(queue_id: any) {
         }
       };
 
-      // เพิ่มหน้าจาก jsPDF
       setCurrentStep('กำลังเพิ่มหน้าจาก jsPDF...');
       const jsPdfDocument = await PDFDocument.load(jsPdfBytes);
       const jsPdfPageCount = jsPdfDocument.getPageCount();
@@ -711,13 +703,11 @@ export default function MultiPDFMergePage(queue_id: any) {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(url);
 
-    // Mobile: ไปหน้า PDF เลย (ไม่มี preview)
     if (isMobile) {
       window.location.href = url;
       return;
     }
     
-    // Desktop: แสดง preview
     setShowPreview(true);
     setStatus('แสดงตัวอย่าง jsPDF (A4) ด้านล่าง');
   };
