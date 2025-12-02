@@ -461,7 +461,7 @@ export default function MultiPDFMergePage(queue_id: any) {
     setAutoProcessed(false);
   };
 
-  // รวม PDF + Image และแสดง preview ทันที
+  // รวม PDF + Image 
   const mergePDFs = async () => {
     if (s3Urls.length === 0) {
       // ถ้าไม่มีไฟล์แนบ S3 ให้สร้างเฉพาะ jsPDF
@@ -472,11 +472,13 @@ export default function MultiPDFMergePage(queue_id: any) {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(url);
 
-      // ✅ แก้ไข: ใช้ openPdfSafe สำหรับทุก mobile
+      // Mobile: ไปหน้า PDF เลย (ไม่มี preview)
       if (isMobile) {
-        openPdfSafe(url);
+        window.location.href = url;
         return;
       }
+      
+      // Desktop: แสดง preview
       setShowPreview(true);
       setStatus('สร้าง Lab Report PDF เสร็จสมบูรณ์');
       return;
@@ -679,12 +681,13 @@ export default function MultiPDFMergePage(queue_id: any) {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(url);
 
-      // ✅ แก้ไข: ใช้ openPdfSafe สำหรับทุก mobile
+      // Mobile: ไปหน้า PDF เลย (ไม่มี preview)
       if (isMobile) {
-        openPdfSafe(url);
+        window.location.href = url;
         return;
       }
 
+      // Desktop: แสดง preview
       setShowPreview(true);
       setProgress(100);
       setStatus(
@@ -706,14 +709,15 @@ export default function MultiPDFMergePage(queue_id: any) {
     const url = URL.createObjectURL(pdfBlob);
 
     if (previewUrl) URL.revokeObjectURL(previewUrl);
-
     setPreviewUrl(url);
 
-    // ✅ แก้ไข: ใช้ openPdfSafe สำหรับทุก mobile
+    // Mobile: ไปหน้า PDF เลย (ไม่มี preview)
     if (isMobile) {
-      openPdfSafe(url);
+      window.location.href = url;
       return;
     }
+    
+    // Desktop: แสดง preview
     setShowPreview(true);
     setStatus('แสดงตัวอย่าง jsPDF (A4) ด้านล่าง');
   };
@@ -795,18 +799,7 @@ export default function MultiPDFMergePage(queue_id: any) {
           <div className="mt-3 p-2 sm:p-3 bg-gray-50 rounded text-xs sm:text-sm text-gray-600">
             <strong className="block sm:inline">การใช้งาน PDF Viewer:</strong>
             <span className="block sm:inline sm:ml-1">
-              {isMobile ? (
-                <>
-                  <span className="block mt-1 text-blue-600">
-                    📱 <strong>Mobile:</strong> PDF จะ replace หน้าปัจจุบัน กด Back จะกลับไปหน้าก่อนหน้า
-                  </span>
-                  <span className="block mt-1 text-green-600">
-                    ✅ <strong>ทั้ง iOS และ Android:</strong> ใช้วิธีเดียวกัน (window.location.href)
-                  </span>
-                </>
-              ) : (
-                'ใช้แถบเครื่องมือด้านบนของ viewer เพื่อ zoom, เปลี่ยนหน้า, พิมพ์ หรือดาวน์โหลด'
-              )}
+              ใช้แถบเครื่องมือด้านบนของ viewer เพื่อ zoom, เปลี่ยนหน้า, พิมพ์ หรือดาวน์โหลด
             </span>
           </div>
         </div>
