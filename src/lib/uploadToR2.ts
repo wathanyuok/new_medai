@@ -17,10 +17,10 @@ export const uploadToS3 = async (
   const buffer = Buffer.from(arrayBuffer)
 
   const s3 = new S3Client({
-    region: process.env.AWS_REGION!,
+    region: process.env.NEXT_PUBLIC_AWS_REGION_AWS_REGION!,
     credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+      accessKeyId: process.env.NEXT_PUBLIC_AWS_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.NEXT_PUBLIC_AWS_SECRET_ACCESS_KEY!,
     },
   })
 
@@ -28,7 +28,7 @@ export const uploadToS3 = async (
   const key = filePath || `his-ai/${Date.now()}.${extension}`
 
 const command = new PutObjectCommand({
-  Bucket: process.env.AWS_BUCKET!,
+  Bucket: process.env.NEXT_PUBLIC_AWS_BUCKET!,
   Key: key,
   Body: buffer,
   ContentType: file.type,
@@ -38,5 +38,5 @@ const command = new PutObjectCommand({
   await s3.send(command)
 
   // หากตั้ง bucket เป็น public อ่านตรงนี้
-  return `${process.env.AWS_PUBLIC_URL}/${key}`
+  return `${process.env.NEXT_PUBLIC_AWS_PUBLIC_URL}/${key}`
 }
