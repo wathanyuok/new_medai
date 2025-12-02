@@ -168,7 +168,7 @@ export default function ClaudeForm() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            authorization: `Bearer 769167175e6a64fd8e898crm2b3381a591db1e8df29`,
+          authorization: `Bearer ${process.env.NEXT_PUBLIC_TK_PUBLIC_KEY}`,
           },
           body: JSON.stringify(payload),
         });
