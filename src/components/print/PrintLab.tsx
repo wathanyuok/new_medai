@@ -83,22 +83,22 @@ export default function MultiPDFMergePage(queue_id: any) {
     fetchQueue();
   }, [queue_id]);
 
-  // Auto process PDF when data is loaded (แสดง preview ทันที)
-  useEffect(() => {
-    const autoProcessPDF = async () => {
-      if (dataLoaded && !autoProcessed && printData && Object.keys(printData).length > 0) {
-        setAutoProcessed(true);
-        setStatus('เริ่มสร้าง PDF อัตโนมัติ...');
+  // ปิด Auto process - ให้ user กดปุ่มเอง
+  // useEffect(() => {
+  //   const autoProcessPDF = async () => {
+  //     if (dataLoaded && !autoProcessed && printData && Object.keys(printData).length > 0) {
+  //       setAutoProcessed(true);
+  //       setStatus('เริ่มสร้าง PDF อัตโนมัติ...');
 
-        // รอให้ UI อัปเดตเล็กน้อย
-        await new Promise((resolve) => setTimeout(resolve, 500));
+  //       // รอให้ UI อัปเดตเล็กน้อย
+  //       await new Promise((resolve) => setTimeout(resolve, 500));
 
-        await mergePDFs(); // จะ set previewUrl และ showPreview ให้เห็นทันที
-      }
-    };
+  //       await mergePDFs(); // จะ set previewUrl และ showPreview ให้เห็นทันที
+  //     }
+  //   };
 
-    autoProcessPDF();
-  }, [dataLoaded, printData, autoProcessed]);
+  //   autoProcessPDF();
+  // }, [dataLoaded, printData, autoProcessed]);
 
   const GetQueue = async (queue_id: number) => {
     const token = localStorage.getItem('token');
@@ -466,7 +466,14 @@ export default function MultiPDFMergePage(queue_id: any) {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(url);
 
-      // ✅ แก้ไข: mobile ก็แสดง iframe เหมือน desktop
+      // Mobile: เปิด PDF ไปเลย (user click = ไม่โดน popup blocker)
+      if (isMobile) {
+        openPdfSafe(url);
+        setStatus('เปิด PDF แล้ว');
+        return;
+      }
+
+      // Desktop: แสดง preview
       setShowPreview(true);
       setStatus('สร้าง Lab Report PDF เสร็จสมบูรณ์');
       return;
@@ -669,7 +676,15 @@ export default function MultiPDFMergePage(queue_id: any) {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(url);
 
-      // ✅ แก้ไข: mobile ก็แสดง iframe เหมือน desktop
+      // Mobile: เปิด PDF ไปเลย (user click = ไม่โดน popup blocker)
+      if (isMobile) {
+        openPdfSafe(url);
+        setProgress(100);
+        setStatus('เปิด PDF แล้ว');
+        return;
+      }
+
+      // Desktop: แสดง preview
       setShowPreview(true);
       setProgress(100);
       setStatus(
@@ -694,7 +709,14 @@ export default function MultiPDFMergePage(queue_id: any) {
 
     setPreviewUrl(url);
 
-    // ✅ แก้ไข: mobile ก็แสดง iframe เหมือน desktop
+    // Mobile: เปิด PDF ไปเลย (user click = ไม่โดน popup blocker)
+    if (isMobile) {
+      openPdfSafe(url);
+      setStatus('เปิด PDF แล้ว');
+      return;
+    }
+
+    // Desktop: แสดง preview
     setShowPreview(true);
     setStatus('แสดงตัวอย่าง jsPDF (A4) ด้านล่าง');
   };
@@ -732,6 +754,55 @@ export default function MultiPDFMergePage(queue_id: any) {
 
   return (
     <div className="container mx-auto p-6 max-w-full">
+      {/* ปุ่มดูผลตรวจ - แสดงเมื่อโหลดข้อมูลเสร็จ */}
+      {dataLoaded && !showPreview && (
+        <div className="bg-white shadow-lg rounded-lg p-6 mt-6">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">
+              ผลตรวจพร้อมแล้ว
+            </h2>
+            <p className="text-gray-600 mb-6">
+              ชื่อ: {printData?.customer?.ctm_fname} {printData?.customer?.ctm_lname}
+              <br />
+              Lab No: {printData?.que_code}
+            </p>
+            <button
+              onClick={mergePDFs}
+              disabled={loading}
+              className="px-8 py-3 bg-blue-600 text-white text-lg font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400 transition-colors shadow-lg"
+            >
+              {loading ? (
+                <>
+                  <span className="inline-block mr-2">⏳</span>
+                  กำลังสร้าง PDF...
+                </>
+              ) : (
+                <>
+                  <span className="inline-block mr-2">📄</span>
+                  ดูผลตรวจ
+                </>
+              )}
+            </button>
+            {loading && (
+              <div className="mt-4">
+                <div className="text-sm text-gray-600">{status}</div>
+                {progress > 0 && (
+                  <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${progress}%` }}
+                    ></div>
+                  </div>
+                )}
+                {currentStep && (
+                  <div className="text-xs text-gray-500 mt-2">{currentStep}</div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* PDF Preview Section */}
       {showPreview && previewUrl && (
         <div className="bg-white shadow-lg rounded-lg p-3 sm:p-6 mt-6">
