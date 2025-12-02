@@ -90,7 +90,6 @@ interface QueueItems {
     queue_item: Item[];
 }
 
-// Enhanced return type for fetchQueueData
 interface FetchQueueDataResult {
     queueData: QueueData;
     s3Urls: string[];
@@ -107,8 +106,9 @@ export default function HealthReportsPage() {
     const [queueData, setQueueData] = useState<QueueData | null>(null);
     const [s3Urls, setS3Urls] = useState<string[]>([]);
     const [shopImage, setShopImage] = useState<string>('');
-    const [reportUrl, setReportUrl] = useState<string | null>(null); // <= ใช้เปิด overlay PDF
-    const router = useRouter()
+    const [showPDFViewer, setShowPDFViewer] = useState(false);
+    const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+    const router = useRouter();
 
     useEffect(() => {
         setLoading(true);
@@ -188,7 +188,6 @@ export default function HealthReportsPage() {
         return age;
     }
 
-    // Refactored to return all necessary data directly
     const fetchQueueData = async (queueId: number): Promise<FetchQueueDataResult | null> => {
         try {
             const token = getAccessToken();
@@ -221,10 +220,8 @@ export default function HealthReportsPage() {
             const data: QueueData = result.data;
             console.log('Queue data loaded:', data);
 
-            // Extract S3 URLs immediately
             const fileUrls = data.queue_file?.map(file => file.quef_path) || [];
 
-            // Load shop image
             let loadedShopImage = '';
             if (data.shop?.shop_image) {
                 try {
@@ -237,12 +234,10 @@ export default function HealthReportsPage() {
                 }
             }
 
-            // Update state for UI display
             setQueueData(data);
             setS3Urls(fileUrls);
             setShopImage(loadedShopImage);
 
-            // Return all data directly
             return {
                 queueData: data,
                 s3Urls: fileUrls,
@@ -266,7 +261,6 @@ export default function HealthReportsPage() {
         }
     };
 
-    // Refactored to accept all necessary data as parameters
     const handleMergePDFs = async (
         queueDataParam: QueueData,
         s3UrlsParam: string[],
@@ -280,7 +274,6 @@ export default function HealthReportsPage() {
         setLoading(true);
 
         try {
-            // Use the passed parameters directly
             const allUrls = [...s3UrlsParam];
 
             const printData: PrintData = {
@@ -300,7 +293,7 @@ export default function HealthReportsPage() {
                 printData: printData,
                 shopImage: shopImageParam,
                 progressCallback: (prog: number, stat: string, step?: string) => {
-                    // Handle progress updates here
+                    // คุณสามารถใส่ logic แสดงสถานะการโหลดได้ที่นี่
                 }
             };
 
@@ -334,12 +327,10 @@ export default function HealthReportsPage() {
         }
     };
 
-    // Refactored to use the returned data directly
     const handleAnalyze = async (queue_item: QueueItems) => {
         setAnalyzing(true);
 
         try {
-            // Fetch queue data and get all necessary data directly
             const fetchResult = await fetchQueueData(queue_item.queue_id);
 
             if (!fetchResult) {
@@ -347,10 +338,8 @@ export default function HealthReportsPage() {
                 return;
             }
 
-            // Use the fetched data directly without relying on state
             const { queueData: fetchedQueueData, s3Urls: fetchedS3Urls, shopImage: fetchedShopImage } = fetchResult;
 
-            // Pass all data directly to avoid state timing issues
             const rawPdfData = await handleMergePDFs(
                 fetchedQueueData,
                 fetchedS3Urls,
@@ -360,14 +349,12 @@ export default function HealthReportsPage() {
             if (rawPdfData && rawPdfData.s3Key) {
                 const encodedUrl = await getPresignedPDFUrl(rawPdfData.s3Key);
                 console.log('Presigned URL:', encodedUrl);
-                localStorage.setItem("from_lab_analyst", "true")
-                localStorage.setItem("lab_link", String(encodedUrl!))
-                router.push(`/ai/aichat`)
-
-                // You can add navigation or further processing here
-                // router.push(`/ai-analysis?url=${encodeURIComponent(encodedUrl)}`);
-
-                toast.success('วิเคราะห์ข้อมูลสำเร็จ');
+                localStorage.setItem("from_lab_analyst", "true");
+                localStorage.setItem("lab_link", String(encodedUrl!));
+                
+                // ใช้สถานะ showPDFViewer เพื่อแสดง iframe PDF ใน component เดียวกัน
+                setPdfUrl(String(encodedUrl));
+                setShowPDFViewer(true);
             } else {
                 toast.error('ไม่สามารถสร้าง PDF สำหรับการวิเคราะห์ได้');
             }
@@ -380,21 +367,61 @@ export default function HealthReportsPage() {
         }
     };
 
-    // ฟังก์ชันเปิด overlay PDF (ไฟล์เดียว ไม่เปลี่ยน route)
-    const openReport = (type: 'lab' | 'xray', queueId: number, checkId?: number) => {
-        const path = checkId
-            ? `/print/${type}/${queueId}?check_id=${checkId}`
-            : `/print/${type}/${queueId}`;
-
-        setReportUrl(path); // ให้ iframe ใช้ path นี้
-    };
-
-    // Handler for when sync is successful
     const handleSyncSuccess = () => {
         fetchHistory(viewType);
         toast.success('เชื่อมต่อข้อมูลสำเร็จ');
     };
 
+    const handleBackFromPDF = () => {
+        // ซ่อน PDF viewer และกลับไปแสดงหน้ารายการตามเดิม
+        setShowPDFViewer(false);
+        setPdfUrl(null);
+    };
+
+    // ถ้า showPDFViewer เป็น true แสดงใบ PDF พร้อมปุ่ม Back ส่วนนี้ช่วยแก้ปัญหา back บน iOS
+    if (showPDFViewer) {
+        return (
+            <>
+                <ToastContainer
+                    position="top-right"
+                    autoClose={3000}
+                    newestOnTop
+                    closeOnClick
+                    pauseOnHover
+                    draggable
+                    style={{ zIndex: 99999 }}
+                />
+
+                <div className="flex flex-col h-screen bg-gray-50">
+                    <header className="p-4 shadow bg-white flex items-center justify-between">
+                        <button
+                            onClick={handleBackFromPDF}
+                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                        >
+                            กลับ
+                        </button>
+                        <h1 className="text-xl font-semibold text-gray-700">ดูไฟล์ผลตรวจ (PDF)</h1>
+                        <div style={{ width: 80 }}></div>
+                    </header>
+                    <main className="flex-grow p-4">
+                        {pdfUrl ? (
+                            <iframe
+                                src={pdfUrl}
+                                style={{ width: '100%', height: '100%' }}
+                                frameBorder="0"
+                                title="PDF Viewer"
+                                sandbox="allow-scripts allow-same-origin allow-forms"
+                            />
+                        ) : (
+                            <p className="text-center text-gray-500 mt-20">กำลังโหลดไฟล์ PDF...</p>
+                        )}
+                    </main>
+                </div>
+            </>
+        );
+    }
+
+    // แสดงหน้ารายการผลตรวจตามโค้ดเดิมเมื่อไม่อยู่ในโหมดดู PDF
     return (
         <>
             {isLogin ? (
@@ -516,13 +543,12 @@ export default function HealthReportsPage() {
 
                                                                         <div className="w-full flex justify-center mt-4 sm:mt-0 sm:justify-end px-5">
                                                                             <div className="flex flex-col sm:flex-row gap-4">
-                                                                                {/* ใช้ overlay viewer */}
-                                                                                <button
-                                                                                    onClick={() => openReport(viewType, item.queue_id, sub_item.id)}
+                                                                                <a
+                                                                                    href={`print/${viewType}/${item.queue_id}?check_id=${sub_item.id}`}
                                                                                     className="text-sm text-[#4385EF] text-center px-4 py-3 rounded-3xl w-38 border border-[#4385EF] hover:bg-[#4385EF] hover:text-white transition-all duration-300"
                                                                                 >
                                                                                     ดูผลตรวจ
-                                                                                </button>
+                                                                                </a>
                                                                             </div>
                                                                         </div>
                                                                     </div>
@@ -534,13 +560,12 @@ export default function HealthReportsPage() {
                                                     <>
                                                         <div className="w-full flex justify-center mt-4 sm:mt-0 sm:justify-end px-5">
                                                             <div className="flex flex-col sm:flex-row gap-4">
-                                                                {/* ใช้ overlay viewer */}
-                                                                <button
-                                                                    onClick={() => openReport(viewType, item.queue_id)}
+                                                                <a
+                                                                    href={`print/${viewType}/${item.queue_id}`}
                                                                     className="text-sm text-[#4385EF] text-center px-4 py-3 rounded-3xl w-38 border border-[#4385EF] hover:bg-[#4385EF] hover:text-white transition-all duration-300"
                                                                 >
                                                                     ดูผลตรวจ
-                                                                </button>
+                                                                </a>
                                                                 {viewType === "lab" && (
                                                                     <button
                                                                         onClick={() => handleAnalyze(item)}
@@ -589,30 +614,6 @@ export default function HealthReportsPage() {
             )}
 
             {analyzing && <AiLoading />}
-
-            {/* 🔴 Overlay PDF Viewer (ไฟล์เดียว) */}
-            {reportUrl && (
-                <div className="fixed inset-0 z-[99998] flex flex-col bg-black/60">
-                    <div className="bg-white flex items-center justify-between px-4 py-2 shadow-md">
-                        <button
-                            onClick={() => setReportUrl(null)}
-                            className="px-3 py-1 text-sm rounded-full border border-gray-300 text-gray-700 hover:bg-gray-100"
-                        >
-                            ← ปิดเอกสาร
-                        </button>
-                        <span className="text-sm font-medium text-gray-800">
-                            เอกสารผลตรวจจากคลินิก
-                        </span>
-                        <div className="w-16" /> {/* ช่องว่างให้ดูบาลานซ์ */}
-                    </div>
-
-                    <iframe
-                        src={reportUrl}
-                        className="flex-1 w-full bg-white"
-                        title="รายงานผลตรวจ"
-                    />
-                </div>
-            )}
         </>
     );
 }
