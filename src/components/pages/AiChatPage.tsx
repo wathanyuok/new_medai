@@ -153,48 +153,37 @@ export default function ClaudeForm() {
       reader.readAsDataURL(f);
     });
 
- const uploadToS3 = async (filesToUpload: File[]) => {
-  const uploaded: { fileName: string; url: string }[] = [];
-
-  for (const f of filesToUpload) {
-    try {
-      const base64 = await readFileAsBase64(f);
-
-      if (f.type.startsWith("image/") && getBase64SizeInBytes(base64) > 4 * 1024 * 1024) {
-        toast.error(`Error: ${f.name} มีขนาดเกิน 4MB`, { position: "top-right", autoClose: 1500 });
-        continue;
+  const uploadToS3 = async (filesToUpload: File[]) => {
+    const uploaded: { fileName: string; url: string }[] = [];
+    for (const f of filesToUpload) {
+      try {
+        const base64 = await readFileAsBase64(f);
+        // ตรวจสอบขนาดรูป 4MB (4 * 1024 * 1024 = 4194304) – โค้ดเดิมใช้ 12194304 ซึ่ง ~11.6MB
+        if (f.type.startsWith("image/") && getBase64SizeInBytes(base64) > 4 * 1024 * 1024) {
+          toast.error(`Error: ${f.name} มีขนาดเกิน 4MB`, { position: "top-right", autoClose: 1500 });
+          continue;
+        }
+        const payload = { file_base64: base64 };
+        const res = await fetch("https://shop.api-apsx.co/crm/queue/aifile", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            authorization: `Bearer 769167175e6a64fd8e898crm2b3381a591db1e8df29`,
+          },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error("upload failed");
+        const result = await res.json();
+        if (result?.data?.quef_path) {
+          uploaded.push({ fileName: f.name, url: result.data.quef_path });
+        }
+      } catch (e) {
+        console.error("Upload error:", e);
+        toast.error(`อัปโหลดไฟล์ ${f.name} ไม่สำเร็จ`, { position: "top-right", autoClose: 1500 });
       }
-
-      const payload = { file_base64: base64 };
-
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/queue/aifile`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          authorization: `Bearer ${process.env.NEXT_PUBLIC_TK_PUBLIC_KEY}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) throw new Error("upload failed");
-
-      const result = await res.json();
-      if (result?.data?.quef_path) {
-        uploaded.push({ fileName: f.name, url: result.data.quef_path });
-      }
-
-    } catch (e) {
-      console.error("Upload error:", e);
-      toast.error(`อัปโหลดไฟล์ ${f.name} ไม่สำเร็จ`, {
-        position: "top-right",
-        autoClose: 1500,
-      });
     }
-  }
-
-  return uploaded;
-};
-
+    return uploaded;
+  };
 
   // ---------- Drag & Drop ----------
   const handleDragOver = (e: React.DragEvent) => {
