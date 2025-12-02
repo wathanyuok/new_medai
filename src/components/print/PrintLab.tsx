@@ -13,15 +13,17 @@ export default function MultiPDFMergePage(queue_id: any) {
   const [s3Urls, setS3Urls] = useState<string[]>([]);
   const [status, setStatus] = useState('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [showPreview, setShowPreview] = useState(false);
+  const [showPreview, setShowPreview] = useState(true);
   const [currentStep, setCurrentStep] = useState('');
   const [progress, setProgress] = useState(0);
   const [printData, setPrintData] = useState<any>({});
   const [image, setImage] = useState('');
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [autoProcessed, setAutoProcessed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isIOSDevice, setIsIOSDevice] = useState(false);
   const [mounted, setMounted] = useState(false);
-
+  
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -30,6 +32,36 @@ export default function MultiPDFMergePage(queue_id: any) {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
       navigator.userAgent
     );
+  };
+
+  // ✅ เพิ่ม: ตรวจจับ iOS
+  const isIOS = () => {
+    return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  };
+
+  // ✅ แก้ไข: ใช้ window.open สำหรับ iOS เพื่อให้ back button ทำงาน
+  const openPdfSafe = (pdfUrl: string) => {
+    if (isIOSDevice) {
+      // iOS: ใช้ window.open แทน window.location.href
+      console.log('🍎 iOS detected - using window.open');
+      const newWindow = window.open(pdfUrl, '_blank');
+      
+      if (!newWindow) {
+        console.log('⚠️ Popup blocked, trying alternative...');
+        // Fallback: สร้าง <a> tag และคลิก
+        const a = document.createElement('a');
+        a.href = pdfUrl;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+    } else {
+      // Android & อื่นๆ: ใช้ window.location.href (ทำงานได้ดี)
+      console.log('🤖 Non-iOS - using window.location.href');
+      window.location.href = pdfUrl;
+    }
   };
 
   // Cleanup URL object เมื่อ component unmount
@@ -43,6 +75,8 @@ export default function MultiPDFMergePage(queue_id: any) {
 
   useEffect(() => {
     setIsMobile(isMobileDevice());
+    setIsIOSDevice(isIOS());
+    console.log('📱 Mobile:', isMobileDevice(), '🍎 iOS:', isIOS());
   }, []);
 
   useEffect(() => {
@@ -58,7 +92,7 @@ export default function MultiPDFMergePage(queue_id: any) {
         setS3Urls(s3Array);
         setDataLoaded(true);
 
-        setStatus('โหลดข้อมูลเสร็จสิ้น');
+        setStatus('โหลดข้อมูลเสร็จสิ้น กำลังเตรียมสร้าง PDF...');
         setCurrentStep('');
       } catch (error) {
         console.error('Error fetching queue:', error);
@@ -69,6 +103,23 @@ export default function MultiPDFMergePage(queue_id: any) {
 
     fetchQueue();
   }, [queue_id]);
+
+  // Auto process PDF when data is loaded (แสดง preview ทันที)
+  useEffect(() => {
+    const autoProcessPDF = async () => {
+      if (dataLoaded && !autoProcessed && printData && Object.keys(printData).length > 0) {
+        setAutoProcessed(true);
+        setStatus('เริ่มสร้าง PDF อัตโนมัติ...');
+
+        // รอให้ UI อัปเดตเล็กน้อย
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        await mergePDFs(); // จะ set previewUrl และ showPreview ให้เห็นทันที
+      }
+    };
+
+    autoProcessPDF();
+  }, [dataLoaded, printData, autoProcessed]);
 
   const GetQueue = async (queue_id: number) => {
     const token = localStorage.getItem('token');
@@ -95,6 +146,7 @@ export default function MultiPDFMergePage(queue_id: any) {
     }
   };
 
+  // ตรวจสอบประเภทไฟล์
   const getFileType = (url: string): 'pdf' | 'image' | 'unknown' => {
     const extension = url.split('.').pop()?.toLowerCase();
     if (extension === 'pdf') return 'pdf';
@@ -102,6 +154,7 @@ export default function MultiPDFMergePage(queue_id: any) {
     return 'unknown';
   };
 
+  // แปลงรูปภาพเป็น PDF (A4)
   const convertImageToPDF = async (imageUrl: string, fileName: string) => {
     const { PDFDocument, rgb } = await import('pdf-lib');
 
@@ -110,12 +163,14 @@ export default function MultiPDFMergePage(queue_id: any) {
       if (!response.ok) throw new Error(`Failed to fetch image: ${response.status}`);
 
       const imageBytes = await response.arrayBuffer();
+
       const pdfDoc = await PDFDocument.create();
       const A4_WIDTH = 595.276;
       const A4_HEIGHT = 841.89;
       const MARGIN = 40;
 
       let embeddedImage: any;
+
       const extension = imageUrl.toLowerCase().split('.').pop();
 
       try {
@@ -152,7 +207,9 @@ export default function MultiPDFMergePage(queue_id: any) {
       const y = (A4_HEIGHT - scaledHeight) / 2;
 
       const page = pdfDoc.addPage([A4_WIDTH, A4_HEIGHT]);
+
       page.drawRectangle({ x: 0, y: 0, width: A4_WIDTH, height: A4_HEIGHT, color: rgb(1, 1, 1) });
+
       page.drawImage(embeddedImage, { x, y, width: scaledWidth, height: scaledHeight });
 
       page.drawText(`${fileName} (Image converted to PDF)`, {
@@ -170,20 +227,39 @@ export default function MultiPDFMergePage(queue_id: any) {
       return pdfDoc;
     } catch (error: any) {
       console.error(`Error converting image ${fileName}:`, error);
+
       const { PDFDocument, rgb } = await import('pdf-lib');
       const errorDoc = await PDFDocument.create();
       const page = errorDoc.addPage([595.276, 841.89]);
+
       page.drawRectangle({ x: 0, y: 0, width: 595.276, height: 841.89, color: rgb(1, 1, 1) });
+
       page.drawText(`Error converting image: ${fileName}`, {
         x: 50,
         y: 400,
         size: 16,
         color: rgb(0.8, 0, 0),
       });
+
+      page.drawText(`URL: ${imageUrl.substring(0, 60)}${imageUrl.length > 60 ? '...' : ''}`, {
+        x: 50,
+        y: 370,
+        size: 10,
+        color: rgb(0.5, 0.5, 0.5),
+      });
+
+      page.drawText(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`, {
+        x: 50,
+        y: 340,
+        size: 10,
+        color: rgb(0.8, 0, 0),
+      });
+
       return errorDoc;
     }
   };
 
+  // สร้าง PDF Report ด้วย jsPDF (A4)
   const createJsPDF = () => {
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     doc.addFileToVFS('TH-Niramit-AS-normal.ttf', font.data);
@@ -339,6 +415,7 @@ export default function MultiPDFMergePage(queue_id: any) {
 
     const printFooter = (doc: jsPDF) => {
       const pageHeight = doc.internal.pageSize.getHeight();
+
       doc.setDrawColor('#DDDAD0');
       doc.setTextColor('#7A7A73');
       doc.setLineWidth(0.5);
@@ -360,6 +437,7 @@ export default function MultiPDFMergePage(queue_id: any) {
         10,
         pageHeight - 11
       );
+
       doc.text(
         `Print Date and Time: ${new Date().toLocaleString('en-GB', {
           day: '2-digit',
@@ -377,40 +455,65 @@ export default function MultiPDFMergePage(queue_id: any) {
     currentY = printHeader(doc, currentY);
     currentY += spacer;
     currentY = printTable(doc, currentY);
+
     doc.setFontSize(16);
     return doc;
   };
 
-  // ✅ สร้าง PDF และแสดงใน iframe (ทั้ง mobile และ desktop)
-  const viewPDF = async () => {
-    console.log('📄 viewPDF called');
-    
+  // แปลง textarea → array ของ URLs (คงไว้เพื่อรองรับ)
+  const parseUrlsFromText = (urlsText: string): string[] => {
+    return urlsText
+      .split('\n')
+      .map((url) => url.trim())
+      .filter((url) => url.length > 0 && url.startsWith('http'));
+  };
+
+  // เมื่อแก้ textarea
+  const handleUrlsChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const urlsText = e.target.value;
+    const urlsArray = parseUrlsFromText(urlsText);
+    setS3Urls(urlsArray);
+    setAutoProcessed(false);
+  };
+
+  // รวม PDF + Image และแสดง preview ทันที
+  const mergePDFs = async () => {
     if (s3Urls.length === 0) {
-      // สร้างเฉพาะ jsPDF
-      console.log('Creating jsPDF only...');
+      // ถ้าไม่มีไฟล์แนบ S3 ให้สร้างเฉพาะ jsPDF
       const jsPdfDoc = createJsPDF();
       const pdfBlob = jsPdfDoc.output('blob');
       const url = URL.createObjectURL(pdfBlob);
 
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(url);
+
+      // ✅ แก้ไข: ใช้ openPdfSafe สำหรับทุก mobile
+      if (isMobile) {
+        openPdfSafe(url);
+        return;
+      }
       setShowPreview(true);
-      setStatus('✅ แสดง PDF สำเร็จ');
+      setStatus('สร้าง Lab Report PDF เสร็จสมบูรณ์');
       return;
     }
 
-    // มีไฟล์แนบ - รวม PDF
     const fileTypes = s3Urls.map((url) => ({ url, type: getFileType(url) }));
     const pdfCount = fileTypes.filter((f) => f.type === 'pdf').length;
     const imageCount = fileTypes.filter((f) => f.type === 'image').length;
+    const unknownCount = fileTypes.filter((f) => f.type === 'unknown').length;
 
     setLoading(true);
     setProgress(0);
-    setStatus(`กำลังประมวลผล ${s3Urls.length} ไฟล์...`);
+    setStatus(
+      `พบไฟล์ ${s3Urls.length} ไฟล์ (PDF: ${pdfCount}, รูปภาพ: ${imageCount}${
+        unknownCount > 0 ? `, ไม่ทราบประเภท: ${unknownCount}` : ''
+      }) - เริ่มประมวลผล...`
+    );
 
     try {
       const { PDFDocument, rgb } = await import('pdf-lib');
 
+      setCurrentStep('กำลังสร้าง PDF ด้วย jsPDF...');
       const jsPdfDoc = createJsPDF();
       const jsPdfBytes = jsPdfDoc.output('arraybuffer');
       setProgress(10);
@@ -418,150 +521,308 @@ export default function MultiPDFMergePage(queue_id: any) {
       const mergedPdf = await PDFDocument.create();
       const A4_WIDTH = 595.276;
       const A4_HEIGHT = 841.89;
+      const MARGIN = 0;
 
+      const convertPageToA4 = async (sourcePage: any, _sourceDoc: any, title: string, pageNumber: number) => {
+        const newPage = mergedPdf.addPage([A4_WIDTH, A4_HEIGHT]);
+
+        newPage.drawRectangle({
+          x: 0,
+          y: 0,
+          width: A4_WIDTH,
+          height: A4_HEIGHT,
+          color: rgb(1, 1, 1),
+        });
+
+        try {
+          const embeddedPage = await mergedPdf.embedPage(sourcePage);
+          const { width: origWidth, height: origHeight } = embeddedPage;
+
+          const availableWidth = A4_WIDTH - MARGIN;
+          const availableHeight = A4_HEIGHT - MARGIN;
+
+          const scaleX = availableWidth / origWidth;
+          const scaleY = availableHeight / origHeight;
+          const scale = Math.min(scaleX, scaleY);
+
+          const scaledWidth = origWidth * scale;
+          const scaledHeight = origHeight * scale;
+
+          const x = (A4_WIDTH - scaledWidth) / 2;
+          const y = (A4_HEIGHT - scaledHeight) / 2;
+
+          newPage.drawPage(embeddedPage, {
+            x,
+            y,
+            width: scaledWidth,
+            height: scaledHeight,
+          });
+        } catch (embedError) {
+          console.warn(`Cannot embed page ${pageNumber} from ${title}:`, embedError);
+
+          newPage.drawText(`${title} - Page ${pageNumber}`, {
+            x: A4_WIDTH / 2 - 60,
+            y: A4_HEIGHT / 2 + 10,
+            size: 14,
+            color: rgb(0, 0, 0),
+          });
+
+          newPage.drawText('(Unable to convert to A4)', {
+            x: A4_WIDTH / 2 - 70,
+            y: A4_HEIGHT / 2 - 10,
+            size: 10,
+            color: rgb(0.8, 0, 0),
+          });
+        }
+      };
+
+      // เพิ่มหน้าจาก jsPDF
+      setCurrentStep('กำลังเพิ่มหน้าจาก jsPDF...');
       const jsPdfDocument = await PDFDocument.load(jsPdfBytes);
-      const jsPdfPages = await mergedPdf.copyPages(jsPdfDocument, jsPdfDocument.getPageIndices());
-      jsPdfPages.forEach((page) => mergedPdf.addPage(page));
+      const jsPdfPageCount = jsPdfDocument.getPageCount();
+
+      for (let i = 0; i < jsPdfPageCount; i++) {
+        const sourcePage = jsPdfDocument.getPage(i);
+        await convertPageToA4(sourcePage, jsPdfDocument, 'jsPDF', i + 1);
+      }
       setProgress(20);
 
+      let totalPagesProcessed = 0;
       const progressPerFile = 70 / s3Urls.length;
 
       for (let urlIndex = 0; urlIndex < s3Urls.length; urlIndex++) {
         const url = s3Urls[urlIndex];
+        const fileNumber = urlIndex + 1;
         const fileType = getFileType(url);
-        setCurrentStep(`กำลังประมวลผลไฟล์ที่ ${urlIndex + 1}/${s3Urls.length}...`);
+        const fileName = url.split('/').pop() || `File${fileNumber}`;
+
+        setCurrentStep(`กำลังประมวลผลไฟล์ที่ ${fileNumber}/${s3Urls.length} (${fileType.toUpperCase()})...`);
 
         try {
           if (fileType === 'pdf') {
             const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status} for PDF file ${fileNumber}`);
+
             const s3PdfBytes = await response.arrayBuffer();
             const s3PdfDocument = await PDFDocument.load(s3PdfBytes);
-            const pages = await mergedPdf.copyPages(s3PdfDocument, s3PdfDocument.getPageIndices());
-            pages.forEach((page) => mergedPdf.addPage(page));
+            const s3PageCount = s3PdfDocument.getPageCount();
+
+            setCurrentStep(`กำลังแปลง PDF ไฟล์ที่ ${fileNumber} (${s3PageCount} หน้า) เป็น A4...`);
+
+            for (let i = 0; i < s3PageCount; i++) {
+              const sourcePage = s3PdfDocument.getPage(i);
+              await convertPageToA4(sourcePage, s3PdfDocument, `PDF File ${fileNumber}`, i + 1);
+              totalPagesProcessed++;
+            }
           } else if (fileType === 'image') {
-            const imagePdf = await convertImageToPDF(url, `Image${urlIndex + 1}`);
-            const pages = await mergedPdf.copyPages(imagePdf, imagePdf.getPageIndices());
-            pages.forEach((page) => mergedPdf.addPage(page));
+            setCurrentStep(`กำลังแปลงรูปภาพที่ ${fileNumber} เป็น PDF...`);
+
+            const imagePdf = await convertImageToPDF(url, fileName);
+            const imagePageCount = imagePdf.getPageCount();
+
+            for (let i = 0; i < imagePageCount; i++) {
+              const sourcePage = imagePdf.getPage(i);
+              await convertPageToA4(sourcePage, imagePdf, `Image File ${fileNumber}`, i + 1);
+              totalPagesProcessed++;
+            }
+          } else {
+            throw new Error(`Unsupported file type for file ${fileNumber}`);
           }
-          setProgress(Math.round(20 + (urlIndex + 1) * progressPerFile));
-        } catch (error) {
-          console.error(`Error processing file ${urlIndex + 1}:`, error);
+
+          const currentProgress = 20 + (urlIndex + 1) * progressPerFile;
+          setProgress(Math.round(currentProgress));
+        } catch (error: any) {
+          console.error(`Error processing file ${fileNumber} (${fileType}):`, error);
+
+          const errorPage = mergedPdf.addPage([A4_WIDTH, A4_HEIGHT]);
+          errorPage.drawRectangle({
+            x: 0,
+            y: 0,
+            width: A4_WIDTH,
+            height: A4_HEIGHT,
+            color: rgb(1, 1, 1),
+          });
+
+          errorPage.drawText(`Error loading ${fileType.toUpperCase()} File ${fileNumber}`, {
+            x: A4_WIDTH / 2 - 100,
+            y: A4_HEIGHT / 2 + 20,
+            size: 16,
+            color: rgb(0.8, 0, 0),
+          });
+
+          errorPage.drawText(`File: ${fileName}`, {
+            x: 50,
+            y: A4_HEIGHT / 2 - 10,
+            size: 10,
+            color: rgb(0.5, 0.5, 0.5),
+          });
+
+          errorPage.drawText(`URL: ${url.substring(0, 50)}${url.length > 50 ? '...' : ''}`, {
+            x: 50,
+            y: A4_HEIGHT / 2 - 30,
+            size: 10,
+            color: rgb(0.5, 0.5, 0.5),
+          });
+
+          errorPage.drawText(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`, {
+            x: 50,
+            y: A4_HEIGHT / 2 - 50,
+            size: 10,
+            color: rgb(0.8, 0, 0),
+          });
         }
       }
 
+      setCurrentStep('กำลังสร้างไฟล์ A4 ที่รวมแล้ว...');
       setProgress(90);
+
+      mergedPdf.setTitle(
+        `Merged PDF - ${s3Urls.length} Files (${pdfCount} PDFs + ${imageCount} Images) Converted to A4`
+      );
+      mergedPdf.setCreator('Multi PDF & Image A4 Converter Tool');
+      mergedPdf.setProducer('jsPDF + PDF-lib A4 Converter');
+      mergedPdf.setCreationDate(new Date());
+
       const mergedPdfBytes = await mergedPdf.save();
-      const blob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
+      const arrayBuffer = mergedPdfBytes.buffer.slice(
+        mergedPdfBytes.byteOffset,
+        mergedPdfBytes.byteOffset + mergedPdfBytes.byteLength
+      );
+      const blob = new Blob([arrayBuffer as ArrayBuffer], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
 
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(url);
+
+      // ✅ แก้ไข: ใช้ openPdfSafe สำหรับทุก mobile
+      if (isMobile) {
+        openPdfSafe(url);
+        return;
+      }
+
       setShowPreview(true);
       setProgress(100);
-      setStatus(`✅ สร้าง PDF สำเร็จ!`);
+      setStatus(
+        `สำเร็จ! รวม ${s3Urls.length} ไฟล์เป็น A4 แล้ว (${pdfCount} PDFs + ${imageCount} Images)`
+      );
     } catch (error: any) {
-      console.error('Error:', error);
-      setStatus(`❌ เกิดข้อผิดพลาด: ${error.message}`);
+      console.error('Error merging files:', error);
+      setStatus(`เกิดข้อผิดพลาด: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
       setCurrentStep('');
+      setProgress(0);
     }
   };
 
-  const downloadPDF = () => {
+  const previewJsPDFOnly = () => {
+    const doc = createJsPDF();
+    const pdfBlob = doc.output('blob');
+    const url = URL.createObjectURL(pdfBlob);
+
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+
+    setPreviewUrl(url);
+
+    // ✅ แก้ไข: ใช้ openPdfSafe สำหรับทุก mobile
+    if (isMobile) {
+      openPdfSafe(url);
+      return;
+    }
+    setShowPreview(true);
+    setStatus('แสดงตัวอย่าง jsPDF (A4) ด้านล่าง');
+  };
+
+  const closePreview = () => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+    setShowPreview(false);
+    setStatus('');
+  };
+
+  const downloadPreviewedPDF = () => {
     if (previewUrl) {
       const a = document.createElement('a');
       a.href = previewUrl;
-      a.download = `Lab-Result-${printData?.customer?.ctm_fname}_${printData?.customer?.ctm_lname}.pdf`;
+      a.download = `Lab-Result-${printData?.customer?.ctm_fname || 'Unknown'}_${
+        printData?.customer?.ctm_lname || 'User'
+      }-${new Date(printData?.que_datetime || new Date()).toLocaleString('th-TH-u-ca-gregory', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      })}.pdf`;
       a.click();
+      setStatus('กำลังดาวน์โหลด PDF...');
     }
   };
 
+  const urlCount = s3Urls.length;
+  const fileTypesArr = s3Urls.map((url) => getFileType(url));
+  const pdfCount = fileTypesArr.filter((type) => type === 'pdf').length;
+  const imageCount = fileTypesArr.filter((type) => type === 'image').length;
+
   return (
-    <div className="container mx-auto p-4 sm:p-6 max-w-full">
-      {/* ปุ่มดูผลตรวจ */}
-      {dataLoaded && !showPreview && !loading && (
-        <div className="bg-white shadow-lg rounded-lg p-6 mt-6">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">ผลตรวจพร้อมแล้ว</h2>
-            <p className="text-gray-600 mb-6">
-              ชื่อ: {printData?.customer?.ctm_fname} {printData?.customer?.ctm_lname}
-              <br />
-              Lab No: {printData?.que_code}
-            </p>
-            <button
-              onClick={viewPDF}
-              className="px-8 py-3 bg-blue-600 text-white text-lg font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors shadow-lg"
-            >
-              <span className="inline-block mr-2">📄</span>
-              ดูผลตรวจ
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Loading */}
-      {loading && (
-        <div className="bg-white shadow-lg rounded-lg p-6 mt-6">
-          <div className="text-center">
-            <div className="text-lg text-gray-800 mb-4">
-              <span className="inline-block mr-2">⏳</span>
-              {status}
-            </div>
-            {progress > 0 && (
-              <div className="w-full bg-gray-200 rounded-full h-2 mt-2 max-w-md mx-auto">
-                <div
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-            )}
-            {currentStep && <div className="text-xs text-gray-500 mt-2">{currentStep}</div>}
-          </div>
-        </div>
-      )}
-
-      {/* PDF Viewer - แสดงทั้ง Mobile และ Desktop */}
+    <div className="container mx-auto p-6 max-w-full">
+      {/* PDF Preview Section */}
       {showPreview && previewUrl && (
         <div className="bg-white shadow-lg rounded-lg p-3 sm:p-6 mt-6">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 space-y-3 sm:space-y-0">
-            <h2 className="text-lg sm:text-xl font-bold text-gray-800">ผลตรวจ Lab</h2>
+            <h2 className="text-lg sm:text-xl font-bold text-gray-800 text-center sm:text-left"></h2>
+
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
               <button
-                onClick={downloadPDF}
-                className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                onClick={downloadPreviewedPDF}
+                className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-blue-600 text-white text-sm sm:text-base rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
               >
-                📥 ดาวน์โหลด PDF
+                <span className="inline-block mr-1">📥</span>
+                <span className="hidden xs:inline">ดาวน์โหลด PDF</span>
+                <span className="xs:hidden">Download</span>
               </button>
+
               <button
-                onClick={() => {
-                  setShowPreview(false);
-                  setPreviewUrl(null);
-                }}
-                className="w-full sm:w-auto px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+                onClick={previewJsPDFOnly}
+                disabled={loading || !printData || Object.keys(printData).length === 0}
+                className="w-full sm:w-auto py-2 px-3 sm:px-4 bg-green-600 text-white text-sm sm:text-base rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-400 transition-colors"
               >
-                🔙 กลับ
+                <span className="inline-block mr-1">📄</span>
+                <span className="hidden xs:inline">ดู Lab Report เท่านั้น</span>
+                <span className="xs:hidden">Lab Only</span>
               </button>
             </div>
           </div>
 
-          {/* PDF Viewer */}
-          <div className="border border-gray-300 rounded-lg overflow-hidden bg-gray-50">
-            {mounted && (
+          {/* PDF Viewer (Desktop เท่านั้น) */}
+          <div className="border border-gray-200 sm:border-2 rounded-lg overflow-hidden">
+            {mounted && !isMobile && (
               <iframe
                 src={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1&zoom=page-fit`}
-                className="w-full h-[500px] sm:h-[600px] md:h-[700px] lg:h-[800px] border-0"
+                width="100%"
+                height="100%"
+                className="border-0 sm:h-[600px] md:h-[700px] lg:h-[800px]"
                 title="PDF Preview"
               />
             )}
           </div>
 
-          {/* คำแนะนำ */}
-          <div className="mt-3 p-3 bg-blue-50 rounded text-sm text-gray-700">
-            💡 <strong>เคล็ดลับ:</strong>{' '}
-            {isMobile
-              ? 'ใช้นิ้วปัดซ้าย-ขวาเพื่อเปลี่ยนหน้า และหยิกเพื่อซูม'
-              : 'ใช้เมาส์ wheel เพื่อเลื่อนดู หรือใช้เครื่องมือด้านบน PDF เพื่อ zoom/พิมพ์'}
+          {/* Instructions */}
+          <div className="mt-3 p-2 sm:p-3 bg-gray-50 rounded text-xs sm:text-sm text-gray-600">
+            <strong className="block sm:inline">การใช้งาน PDF Viewer:</strong>
+            <span className="block sm:inline sm:ml-1">
+              {isMobile ? (
+                <>
+                  <span className="block mt-1 text-blue-600">
+                    📱 <strong>Mobile:</strong> PDF เปิดใน Tab ใหม่ กด Back เพื่อกลับมาหน้านี้ได้
+                  </span>
+                  <span className="block mt-1 text-green-600">
+                    {isIOSDevice ? '🍎 iOS: ใช้ window.open เพื่อรักษา history' : '🤖 Android: ใช้ location.href'}
+                  </span>
+                </>
+              ) : (
+                'ใช้แถบเครื่องมือด้านบนของ viewer เพื่อ zoom, เปลี่ยนหน้า, พิมพ์ หรือดาวน์โหลด'
+              )}
+            </span>
           </div>
         </div>
       )}
