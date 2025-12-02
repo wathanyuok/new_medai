@@ -39,29 +39,14 @@ export default function MultiPDFMergePage(queue_id: any) {
     return /iPhone|iPad|iPod/i.test(navigator.userAgent);
   };
 
-  // ✅ แก้ไข: ใช้ window.open สำหรับ iOS เพื่อให้ back button ทำงาน
+  // ✅ แก้ไข: ให้ทั้ง iOS และ Android ใช้วิธีเดียวกัน (replace หน้า)
   const openPdfSafe = (pdfUrl: string) => {
-    if (isIOSDevice) {
-      // iOS: ใช้ window.open แทน window.location.href
-      console.log('🍎 iOS detected - using window.open');
-      const newWindow = window.open(pdfUrl, '_blank');
-      
-      if (!newWindow) {
-        console.log('⚠️ Popup blocked, trying alternative...');
-        // Fallback: สร้าง <a> tag และคลิก
-        const a = document.createElement('a');
-        a.href = pdfUrl;
-        a.target = '_blank';
-        a.rel = 'noopener noreferrer';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      }
-    } else {
-      // Android & อื่นๆ: ใช้ window.location.href (ทำงานได้ดี)
-      console.log('🤖 Non-iOS - using window.location.href');
-      window.location.href = pdfUrl;
-    }
+    console.log('📱 Opening PDF for mobile...');
+    console.log('🍎 iOS:', isIOSDevice, '🤖 Android:', !isIOSDevice);
+    
+    // ทั้ง iOS และ Android: ใช้ window.location.href (replace หน้าปัจจุบัน)
+    // หลังกด back จาก PDF จะกลับไปหน้าก่อนหน้านี้เลย
+    window.location.href = pdfUrl;
   };
 
   // Cleanup URL object เมื่อ component unmount
@@ -813,10 +798,10 @@ export default function MultiPDFMergePage(queue_id: any) {
               {isMobile ? (
                 <>
                   <span className="block mt-1 text-blue-600">
-                    📱 <strong>Mobile:</strong> PDF เปิดใน Tab ใหม่ กด Back เพื่อกลับมาหน้านี้ได้
+                    📱 <strong>Mobile:</strong> PDF จะ replace หน้าปัจจุบัน กด Back จะกลับไปหน้าก่อนหน้า
                   </span>
                   <span className="block mt-1 text-green-600">
-                    {isIOSDevice ? '🍎 iOS: ใช้ window.open เพื่อรักษา history' : '🤖 Android: ใช้ location.href'}
+                    ✅ <strong>ทั้ง iOS และ Android:</strong> ใช้วิธีเดียวกัน (window.location.href)
                   </span>
                 </>
               ) : (
