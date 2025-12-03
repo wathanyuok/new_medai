@@ -699,9 +699,11 @@ export default function MultiPDFMergePage(queue_id: any) {
       mergedPdf.setProducer('jsPDF + PDF-lib A4 Converter');
       mergedPdf.setCreationDate(new Date());
 
-      const mergedPdfBytes = await mergedPdf.save();
+const mergedPdfBytes = await mergedPdf.save();
+const blob = new Blob([mergedPdfBytes.buffer as ArrayBuffer], {
+  type: 'application/pdf',
+});
 
-      const blob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
 
       if (previewUrl) {
