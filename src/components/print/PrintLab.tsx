@@ -26,24 +26,6 @@ export default function MultiPDFMergePage(queue_id: any) {
   const isMobileDevice = () => {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   };
-
-
-
-
-const openPdfSafe = (pdfUrl: string) => {
-  const a = document.createElement('a');
-  a.href = pdfUrl;
-  a.target = '_blank';
-  a.rel = 'noopener noreferrer';
-  a.style.display = 'none';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-};
-
-
-
-
   // Cleanup function เมื่อ component unmount
   useEffect(() => {
     return () => {
@@ -515,7 +497,8 @@ const openPdfSafe = (pdfUrl: string) => {
 
       setPreviewUrl(url);
        if (isMobile) {
-       window.location.href = url;   // เปิดในแท็บปัจจุบัน ไม่โดนบล็อก
+                window.open(url, '_blank');
+                window.close()
                 return;
             }
       setShowPreview(true);
@@ -716,20 +699,10 @@ const openPdfSafe = (pdfUrl: string) => {
       mergedPdf.setProducer('jsPDF + PDF-lib A4 Converter');
       mergedPdf.setCreationDate(new Date());
 
-      // const mergedPdfBytes = await mergedPdf.save();
+      const mergedPdfBytes = await mergedPdf.save();
 
-      // const blob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
-      // const url = URL.createObjectURL(blob);
-
-      const mergedPdfBytes = await mergedPdf.save(); // ได้ Uint8Array
-      const arrayBuffer = mergedPdfBytes.buffer.slice(
-             mergedPdfBytes.byteOffset,
-              mergedPdfBytes.byteOffset + mergedPdfBytes.byteLength
-);
-const blob = new Blob([arrayBuffer as ArrayBuffer], { type: "application/pdf" });
-
-// Create an object URL for the merged blob and use it for preview/opening
-const url = URL.createObjectURL(blob);
+      const blob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
 
       if (previewUrl) {
         URL.revokeObjectURL(previewUrl);
@@ -737,8 +710,8 @@ const url = URL.createObjectURL(blob);
 
       setPreviewUrl(url);
       if (isMobile) {
-      window.location.href = url;   // เปิดในแท็บปัจจุบัน ไม่โดนบล็อก
-
+                window.open(url, '_blank');
+                window.close()
                 return;
             }
       setShowPreview(true);
@@ -822,23 +795,20 @@ const url = URL.createObjectURL(blob);
               >
                 <span className="inline-block mr-1">📥</span>
                 <span className="hidden xs:inline">ดาวน์โหลด PDF</span>
-                <span className="xs:hidden">Download1</span>
+                <span className="xs:hidden">Download</span>
               </button>
 
               {/* Mobile: Open in New Tab Button */}
-              {isMobile && previewUrl && (
-              <a
-              href={previewUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full sm:w-auto inline-block text-center px-3 sm:px-4 py-2 bg-purple-600 text-white text-sm sm:text-base rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors"
-              >
-              <span className="inline-block mr-1">🔗</span>
+              {isMobile && (
+                <button
+                  onClick={() => window.open(previewUrl, '_blank')}
+                  className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-purple-600 text-white text-sm sm:text-base rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors"
+                >
+                  <span className="inline-block mr-1">🔗</span>
                   <span className="hidden xs:inline">เปิดใน Tab ใหม่</span>
-                  <span className="xs:hidden">Download2</span>
-                </a>
+                  <span className="xs:hidden">Download</span>
+                </button>
               )}
-
 
               {/* <button
                 onClick={closePreview}
