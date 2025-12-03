@@ -13,7 +13,7 @@ export default function MultiPDFMergePage(queue_id: any) {
   const [s3Urls, setS3Urls] = useState<string[]>([]);
   const [status, setStatus] = useState('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [showPreview, setShowPreview] = useState(true);
+  const [showPreview, setShowPreview] = useState(false);
   const [currentStep, setCurrentStep] = useState('');
   const [progress, setProgress] = useState(0);
   const [printData, setPrintData] = useState<any>({});
@@ -39,13 +39,17 @@ export default function MultiPDFMergePage(queue_id: any) {
     return /iPhone|iPad|iPod/i.test(navigator.userAgent);
   };
 
+  // ✅ แก้ไข: ให้ทั้ง iOS และ Android ใช้วิธีเดียวกัน (replace หน้า)
   const openPdfSafe = (pdfUrl: string) => {
     console.log('📱 Opening PDF for mobile...');
     console.log('🍎 iOS:', isIOSDevice, '🤖 Android:', !isIOSDevice);
-   
+    
+    // ทั้ง iOS และ Android: ใช้ window.location.href (replace หน้าปัจจุบัน)
+    // หลังกด back จาก PDF จะกลับไปหน้าก่อนหน้านี้เลย
     window.location.href = pdfUrl;
   };
 
+  // Cleanup URL object เมื่อ component unmount
   useEffect(() => {
     return () => {
       if (previewUrl) {
@@ -85,7 +89,7 @@ export default function MultiPDFMergePage(queue_id: any) {
     fetchQueue();
   }, [queue_id]);
 
-  // Auto process PDF when data is loaded (แสดง preview ทันที)
+  // ปิด Auto process - ไม่ให้แสดงหน้า preview บน mobile
   useEffect(() => {
     const autoProcessPDF = async () => {
       if (dataLoaded && !autoProcessed && printData && Object.keys(printData).length > 0) {
@@ -95,7 +99,7 @@ export default function MultiPDFMergePage(queue_id: any) {
         // รอให้ UI อัปเดตเล็กน้อย
         await new Promise((resolve) => setTimeout(resolve, 500));
 
-        await mergePDFs(); // จะ set previewUrl และ showPreview ให้เห็นทันที
+        await mergePDFs(); // สร้าง PDF และ redirect ทันที
       }
     };
 
@@ -441,6 +445,7 @@ export default function MultiPDFMergePage(queue_id: any) {
     return doc;
   };
 
+  // แปลง textarea → array ของ URLs (คงไว้เพื่อรองรับ)
   const parseUrlsFromText = (urlsText: string): string[] => {
     return urlsText
       .split('\n')
@@ -458,20 +463,31 @@ export default function MultiPDFMergePage(queue_id: any) {
 
   // รวม PDF + Image 
   const mergePDFs = async () => {
+    console.log('🔵 mergePDFs called');
+    console.log('📱 isMobile:', isMobile);
+    console.log('🍎 isIOSDevice:', isIOSDevice);
+    
     if (s3Urls.length === 0) {
       // ถ้าไม่มีไฟล์แนบ S3 ให้สร้างเฉพาะ jsPDF
       const jsPdfDoc = createJsPDF();
-      const pdfBlob = jsPdfDoc.output('blob');
-      const url = URL.createObjectURL(pdfBlob);
-
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(url);
-
+      
+      // Mobile: สร้าง data URI และ redirect
       if (isMobile) {
-        window.location.href = url;
+        console.log('📱 Mobile detected - creating data URI for PDF');
+        const pdfDataUri = jsPdfDoc.output('datauristring');
+        
+        // ใช้ window.location.href กับ data URI (ทำงานได้บน iOS)
+        window.location.href = pdfDataUri;
         return;
       }
       
+      // Desktop: แสดง preview
+      const pdfBlob = jsPdfDoc.output('blob');
+      const url = URL.createObjectURL(pdfBlob);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(url);
+      
+      console.log('🖥️ Desktop detected - showing preview');
       setShowPreview(true);
       setStatus('สร้าง Lab Report PDF เสร็จสมบูรณ์');
       return;
@@ -556,6 +572,7 @@ export default function MultiPDFMergePage(queue_id: any) {
         }
       };
 
+      // เพิ่มหน้าจาก jsPDF
       setCurrentStep('กำลังเพิ่มหน้าจาก jsPDF...');
       const jsPdfDocument = await PDFDocument.load(jsPdfBytes);
       const jsPdfPageCount = jsPdfDocument.getPageCount();
@@ -663,6 +680,26 @@ export default function MultiPDFMergePage(queue_id: any) {
       mergedPdf.setCreationDate(new Date());
 
       const mergedPdfBytes = await mergedPdf.save();
+      
+      // Mobile: แปลงเป็น data URI และ redirect
+      if (isMobile) {
+        console.log('📱 Mobile - creating data URI for merged PDF');
+        const base64 = btoa(
+          Array.from(new Uint8Array(mergedPdfBytes))
+            .map(byte => String.fromCharCode(byte))
+            .join('')
+        );
+        const dataUri = `data:application/pdf;base64,${base64}`;
+        
+        setProgress(100);
+        setLoading(false);
+        
+        // Redirect ไป PDF (ใช้ data URI ทำงานได้บน iOS)
+        window.location.href = dataUri;
+        return;
+      }
+
+      // Desktop: แสดง preview
       const arrayBuffer = mergedPdfBytes.buffer.slice(
         mergedPdfBytes.byteOffset,
         mergedPdfBytes.byteOffset + mergedPdfBytes.byteLength
@@ -673,13 +710,6 @@ export default function MultiPDFMergePage(queue_id: any) {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(url);
 
-      // Mobile: ไปหน้า PDF เลย (ไม่มี preview)
-      if (isMobile) {
-        window.location.href = url;
-        return;
-      }
-
-      // Desktop: แสดง preview
       setShowPreview(true);
       setProgress(100);
       setStatus(
@@ -697,17 +727,19 @@ export default function MultiPDFMergePage(queue_id: any) {
 
   const previewJsPDFOnly = () => {
     const doc = createJsPDF();
-    const pdfBlob = doc.output('blob');
-    const url = URL.createObjectURL(pdfBlob);
-
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setPreviewUrl(url);
-
+    
+    // Mobile: ใช้ data URI และ redirect
     if (isMobile) {
-      window.location.href = url;
+      const pdfDataUri = doc.output('datauristring');
+      window.location.href = pdfDataUri;
       return;
     }
     
+    // Desktop: แสดง preview
+    const pdfBlob = doc.output('blob');
+    const url = URL.createObjectURL(pdfBlob);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(url);
     setShowPreview(true);
     setStatus('แสดงตัวอย่าง jsPDF (A4) ด้านล่าง');
   };
@@ -744,7 +776,7 @@ export default function MultiPDFMergePage(queue_id: any) {
 
   return (
     <div className="container mx-auto p-6 max-w-full">
-      {/* PDF Preview Section */}
+      {/* PDF Preview Section (Desktop only) */}
       {showPreview && previewUrl && (
         <div className="bg-white shadow-lg rounded-lg p-3 sm:p-6 mt-6">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 space-y-3 sm:space-y-0">
