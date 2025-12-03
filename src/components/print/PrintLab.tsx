@@ -496,11 +496,15 @@ export default function MultiPDFMergePage(queue_id: any) {
       }
 
       setPreviewUrl(url);
-       if (isMobile) {
-                window.open(url, '_blank');
-                window.close()
-                return;
-            }
+      if (isMobile) {
+        // window.open(url, '_blank');
+        // window.close()
+
+        window.open('about:blank', '_blank');
+        window.location.href = url;
+        window.close();
+        return;
+      }
       setShowPreview(true);
       setStatus('สร้าง Lab Report PDF เสร็จสมบูรณ์');
       return;
@@ -699,10 +703,10 @@ export default function MultiPDFMergePage(queue_id: any) {
       mergedPdf.setProducer('jsPDF + PDF-lib A4 Converter');
       mergedPdf.setCreationDate(new Date());
 
-const mergedPdfBytes = await mergedPdf.save();
-const blob = new Blob([mergedPdfBytes.buffer as ArrayBuffer], {
-  type: 'application/pdf',
-});
+      const mergedPdfBytes = await mergedPdf.save();
+      const blob = new Blob([mergedPdfBytes.buffer as ArrayBuffer], {
+        type: 'application/pdf',
+      });
 
       const url = URL.createObjectURL(blob);
 
@@ -712,10 +716,15 @@ const blob = new Blob([mergedPdfBytes.buffer as ArrayBuffer], {
 
       setPreviewUrl(url);
       if (isMobile) {
-                window.open(url, '_blank');
-                window.close()
-                return;
-            }
+        // window.open(url, '_blank');
+        // window.close()
+
+        window.open('about:blank', '_blank');
+        window.location.href = url;
+        window.close();
+
+        return;
+      }
       setShowPreview(true);
       setProgress(100);
       setStatus(`สำเร็จ! รวม ${s3Urls.length} ไฟล์เป็น A4 แล้ว (${pdfCount} PDFs + ${imageCount} Images, รวม ${totalPagesProcessed + jsPdfPageCount} หน้า)`);
