@@ -22,7 +22,6 @@ export default function MultiPDFMergePage(queue_id: any) {
   const [autoProcessed, setAutoProcessed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [mounted, setMounted] = useState(false);
-
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -31,6 +30,17 @@ export default function MultiPDFMergePage(queue_id: any) {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
       navigator.userAgent
     );
+  };
+
+  const openPdfSafe = (pdfUrl: string) => {
+    const a = document.createElement('a');
+    a.href = pdfUrl;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   // Cleanup URL object เมื่อ component unmount
@@ -78,9 +88,10 @@ export default function MultiPDFMergePage(queue_id: any) {
         setAutoProcessed(true);
         setStatus('เริ่มสร้าง PDF อัตโนมัติ...');
 
+        // รอให้ UI อัปเดตเล็กน้อย
         await new Promise((resolve) => setTimeout(resolve, 500));
 
-        await mergePDFs();
+        await mergePDFs(); // จะ set previewUrl และ showPreview ให้เห็นทันที
       }
     };
 
@@ -112,6 +123,7 @@ export default function MultiPDFMergePage(queue_id: any) {
     }
   };
 
+  // ตรวจสอบประเภทไฟล์
   const getFileType = (url: string): 'pdf' | 'image' | 'unknown' => {
     const extension = url.split('.').pop()?.toLowerCase();
     if (extension === 'pdf') return 'pdf';
@@ -119,6 +131,7 @@ export default function MultiPDFMergePage(queue_id: any) {
     return 'unknown';
   };
 
+  // แปลงรูปภาพเป็น PDF (A4)
   const convertImageToPDF = async (imageUrl: string, fileName: string) => {
     const { PDFDocument, rgb } = await import('pdf-lib');
 
@@ -223,6 +236,7 @@ export default function MultiPDFMergePage(queue_id: any) {
     }
   };
 
+  // สร้าง PDF Report ด้วย jsPDF (A4)
   const createJsPDF = () => {
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     doc.addFileToVFS('TH-Niramit-AS-normal.ttf', font.data);
@@ -304,9 +318,7 @@ export default function MultiPDFMergePage(queue_id: any) {
       doc.setFont('TH-Niramit', 'bold');
       doc.setFontSize(font_body);
       doc.text(
-        `Name : ${
-          printData.customer.ctm_prefix == 'ไม่ระบุ' ? '' : printData.customer.ctm_prefix
-        } ${printData.customer.ctm_fname} ${printData.customer.ctm_lname}`,
+        `Name : ${printData.customer.ctm_prefix == 'ไม่ระบุ' ? '' : printData.customer.ctm_prefix} ${printData.customer.ctm_fname} ${printData.customer.ctm_lname}`,
         25,
         currentY
       );
@@ -425,14 +437,38 @@ export default function MultiPDFMergePage(queue_id: any) {
     return doc;
   };
 
+  // แปลง textarea → array ของ URLs (คงไว้เพื่อรองรับ)
+  const parseUrlsFromText = (urlsText: string): string[] => {
+    return urlsText
+      .split('\n')
+      .map((url) => url.trim())
+      .filter((url) => url.length > 0 && url.startsWith('http'));
+  };
+
+  // เมื่อแก้ textarea
+  const handleUrlsChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const urlsText = e.target.value;
+    const urlsArray = parseUrlsFromText(urlsText);
+    setS3Urls(urlsArray);
+    setAutoProcessed(false);
+  };
+
+  // รวม PDF + Image และแสดง preview ทันที
   const mergePDFs = async () => {
     if (s3Urls.length === 0) {
+      // ถ้าไม่มีไฟล์แนบ S3 ให้สร้างเฉพาะ jsPDF
       const jsPdfDoc = createJsPDF();
       const pdfBlob = jsPdfDoc.output('blob');
       const url = URL.createObjectURL(pdfBlob);
 
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(url);
+
+      // มือถือ redirect เพื่อเปิดด้วย viewer ของระบบ / Desktop แสดง iframe เหมือนเดิม
+      if (isMobile) {
+        window.location.href = url;
+        return;
+      }
       setShowPreview(true);
       setStatus('สร้าง Lab Report PDF เสร็จสมบูรณ์');
       return;
@@ -517,6 +553,7 @@ export default function MultiPDFMergePage(queue_id: any) {
         }
       };
 
+      // เพิ่มหน้าจาก jsPDF
       setCurrentStep('กำลังเพิ่มหน้าจาก jsPDF...');
       const jsPdfDocument = await PDFDocument.load(jsPdfBytes);
       const jsPdfPageCount = jsPdfDocument.getPageCount();
@@ -633,6 +670,13 @@ export default function MultiPDFMergePage(queue_id: any) {
 
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(url);
+
+      // มือถือ redirect เพื่อเปิดด้วย viewer ของระบบ / Desktop แสดง iframe เหมือนเดิม
+      if (isMobile) {
+        window.location.href = url;
+        return;
+      }
+
       setShowPreview(true);
       setProgress(100);
       setStatus(
@@ -654,7 +698,14 @@ export default function MultiPDFMergePage(queue_id: any) {
     const url = URL.createObjectURL(pdfBlob);
 
     if (previewUrl) URL.revokeObjectURL(previewUrl);
+
     setPreviewUrl(url);
+
+    // Desktop preview คงเดิม, Mobile redirect
+    if (isMobile) {
+      window.location.href = url;
+      return;
+    }
     setShowPreview(true);
     setStatus('แสดงตัวอย่าง jsPDF (A4) ด้านล่าง');
   };
@@ -684,27 +735,46 @@ export default function MultiPDFMergePage(queue_id: any) {
     }
   };
 
+  // (แสดงผล) — Desktop preview เหมือนเดิมทุกอย่าง + ปุ่ม Download อยู่หน้าเดียวกัน
+  const urlCount = s3Urls.length;
   const fileTypesArr = s3Urls.map((url) => getFileType(url));
   const pdfCount = fileTypesArr.filter((type) => type === 'pdf').length;
   const imageCount = fileTypesArr.filter((type) => type === 'image').length;
 
   return (
     <div className="container mx-auto p-6 max-w-full">
+      {/* PDF Preview Section */}
       {showPreview && previewUrl && (
         <div className="bg-white shadow-lg rounded-lg p-3 sm:p-6 mt-6">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 space-y-3 sm:space-y-0">
             <h2 className="text-lg sm:text-xl font-bold text-gray-800 text-center sm:text-left"></h2>
 
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+              {/* ปุ่มดาวน์โหลด (อยู่ในหน้า preview เลย) */}
               <button
                 onClick={downloadPreviewedPDF}
                 className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-blue-600 text-white text-sm sm:text-base rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
               >
                 <span className="inline-block mr-1">📥</span>
                 <span className="hidden xs:inline">ดาวน์โหลด PDF</span>
-                <span className="xs:hidden">Download</span>
+                <span className="xs:hidden">Download1</span>
               </button>
 
+              {/* Mobile: ปุ่มเปิดแท็บใหม่ (Desktop ไม่เปลี่ยนพฤติกรรม) */}
+              {/* {isMobile && previewUrl && (
+                <a
+                  href={previewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full sm:w-auto inline-block text-center px-3 sm:px-4 py-2 bg-purple-600 text-white text-sm sm:text-base rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors"
+                >
+                  <span className="inline-block mr-1">🔗</span>
+                  <span className="hidden xs:inline">เปิดใน Tab ใหม่</span>
+                  <span className="xs:hidden">Download2</span>
+                </a>
+              )} */}
+
+              {/* ปุ่ม “ดู Lab Report เท่านั้น” ยังคงไว้ เผื่อใช้งาน manual */}
               <button
                 onClick={previewJsPDFOnly}
                 disabled={loading || !printData || Object.keys(printData).length === 0}
@@ -717,22 +787,66 @@ export default function MultiPDFMergePage(queue_id: any) {
             </div>
           </div>
 
-          <div className="border border-gray-200 sm:border-2 rounded-lg overflow-hidden">
-            {mounted && previewUrl && (
-              <iframe
-                src={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1&zoom=page-fit`}
-                width="100%"
-                height="100%"
-                className="border-0 sm:h-[600px] md:h-[700px] lg:h-[800px]"
-                title="PDF Preview"
-              />
-            )}
-          </div>
+          {/* Mobile คำแนะนำ (Desktop ไม่เปลี่ยน) */}
+          {/* {isMobile && (
+            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="flex items-start space-x-2">
+                <span className="text-amber-500 text-lg">⚠️</span>
+                <div className="text-amber-800 text-sm">
+                  <strong>📱 Mobile Device Detected:</strong>
+                  <p className="mt-1">
+                    PDF viewer controls อาจถูกจำกัดบนเบราว์เซอร์มือถือ
+                    แนะนำให้ใช้ <strong>"เปิดใน Tab ใหม่"</strong> หรือ <strong>"ดาวน์โหลด PDF"</strong> เพื่อเปิดด้วยแอป PDF
+                  </p>
+                </div>
+              </div>
+            </div>
+          )} */}
 
+{/* PDF Viewer (แสดงเฉพาะ Desktop) */}
+<div className="border border-gray-200 sm:border-2 rounded-lg overflow-hidden">
+  {/* มือถือ: ไม่เรนเดอร์ viewer เพื่อหลีกเลี่ยงปุ่ม "เปิด" ของเบราว์เซอร์ */}
+  {/* Desktop: แสดง iframe ตามเดิม */}
+  {mounted && !isMobile && (
+    <iframe
+      src={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1&zoom=page-fit`}
+      width="100%"
+      height="100%"
+      className="border-0 sm:h-[600px] md:h-[700px] lg:h-[800px]"
+      title="PDF Preview"
+    />
+  )}
+</div>
+
+  
+  {/* ✅ ใช้ iframe แบบเดียวกันสำหรับทุกอุปกรณ์ */}
+  {/* <iframe
+    src={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1&zoom=page-fit`}
+    width="100%"
+    height="100%"
+    className="border-0 sm:h-[600px] md:h-[700px] lg:h-[800px]"
+    title="PDF Preview"
+  /> */}
+  {/* ) */}
+{/* </div> */}
+
+
+          {/* Instructions */}
           <div className="mt-3 p-2 sm:p-3 bg-gray-50 rounded text-xs sm:text-sm text-gray-600">
             <strong className="block sm:inline">การใช้งาน PDF Viewer:</strong>
             <span className="block sm:inline sm:ml-1">
-              ใช้แถบเครื่องมือด้านบนของ viewer เพื่อ zoom, เปลี่ยนหน้า, พิมพ์ หรือดาวน์โหลด
+              {isMobile ? (
+                <>
+                  <span className="block mt-1 text-blue-600">
+                    📱 <strong>Mobile:</strong> ปัดซ้าย-ขวาเพื่อเปลี่ยนหน้า, หยิกเพื่อซูม
+                  </span>
+                  <span className="block mt-1 text-purple-600">
+                    🔗 <strong>เคล็ดลับ:</strong> กด "เปิดใน Tab ใหม่" เพื่อใช้งาน PDF ได้เต็มรูปแบบ
+                  </span>
+                </>
+              ) : (
+                'ใช้แถบเครื่องมือด้านบนของ viewer เพื่อ zoom, เปลี่ยนหน้า, พิมพ์ หรือดาวน์โหลด'
+              )}
             </span>
           </div>
         </div>
