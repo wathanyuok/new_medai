@@ -471,13 +471,13 @@ export default function MultiPDFMergePage(queue_id: any) {
       // ถ้าไม่มีไฟล์แนบ S3 ให้สร้างเฉพาะ jsPDF
       const jsPdfDoc = createJsPDF();
       
-      // Mobile: สร้าง data URI และ redirect
+      // Mobile: สร้าง data URI และ replace (ไม่เพิ่ม history)
       if (isMobile) {
         console.log('📱 Mobile detected - creating data URI for PDF');
         const pdfDataUri = jsPdfDoc.output('datauristring');
         
-        // ใช้ window.location.href กับ data URI (ทำงานได้บน iOS)
-        window.location.href = pdfDataUri;
+        // ใช้ replace แทน href เพื่อไม่ให้มี history ค้าง
+        window.location.replace(pdfDataUri);
         return;
       }
       
@@ -681,7 +681,7 @@ export default function MultiPDFMergePage(queue_id: any) {
 
       const mergedPdfBytes = await mergedPdf.save();
       
-      // Mobile: แปลงเป็น data URI และ redirect
+      // Mobile: แปลงเป็น data URI และ replace (ไม่เพิ่ม history)
       if (isMobile) {
         console.log('📱 Mobile - creating data URI for merged PDF');
         const base64 = btoa(
@@ -694,8 +694,8 @@ export default function MultiPDFMergePage(queue_id: any) {
         setProgress(100);
         setLoading(false);
         
-        // Redirect ไป PDF (ใช้ data URI ทำงานได้บน iOS)
-        window.location.href = dataUri;
+        // ใช้ replace แทน href เพื่อไม่ให้มี history ค้าง
+        window.location.replace(dataUri);
         return;
       }
 
@@ -728,10 +728,10 @@ export default function MultiPDFMergePage(queue_id: any) {
   const previewJsPDFOnly = () => {
     const doc = createJsPDF();
     
-    // Mobile: ใช้ data URI และ redirect
+    // Mobile: ใช้ data URI และ replace (ไม่เพิ่ม history)
     if (isMobile) {
       const pdfDataUri = doc.output('datauristring');
-      window.location.href = pdfDataUri;
+      window.location.replace(pdfDataUri);
       return;
     }
     
