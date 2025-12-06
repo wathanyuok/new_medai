@@ -19,24 +19,6 @@ export default function MultiPDFMergePage(queue_id: any) {
   const [image, setImage] = useState("");
   const [dataLoaded, setDataLoaded] = useState(false);
   const [autoProcessed, setAutoProcessed] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [isAndroid, setIsAndroid] = useState(false);
-  const [isIOS, setIsIOS] = useState(false);
-
-  const detectDevice = () => {
-    const ua = navigator.userAgent;
-    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
-    const isAndroidDevice = /Android/i.test(ua);
-    const isIOSDevice = /iPhone|iPad|iPod/i.test(ua);
-    return { isMobile: isMobileDevice, isAndroid: isAndroidDevice, isIOS: isIOSDevice };
-  };
-
-  useEffect(() => {
-    const { isMobile: mobile, isAndroid, isIOS } = detectDevice();
-    setIsMobile(mobile);
-    setIsAndroid(isAndroid);
-    setIsIOS(isIOS);
-  }, []);
 
   useEffect(() => {
     const queueId = parseInt(queue_id.queue_id);
@@ -271,20 +253,6 @@ export default function MultiPDFMergePage(queue_id: any) {
     return doc;
   };
 
-  const openPDFMobile = (pdfUrl: string) => {
-    if (isIOS) {
-      // iOS: ใช้ replace ตามปกติ (ทำงานได้ดี)
-      window.location.replace(pdfUrl);
-    } else if (isAndroid) {
-      // Android: ใช้ history API + replace เพื่อให้ back ครั้งเดียวปิด PDF
-      window.history.replaceState(null, '', pdfUrl);
-      window.location.replace(pdfUrl);
-    } else {
-      // Desktop: เปิดปกติ
-      window.open(pdfUrl, '_blank');
-    }
-  };
-
   const mergePDFs = async () => {
     try {
       const { PDFDocument, rgb } = await import('pdf-lib');
@@ -295,12 +263,6 @@ export default function MultiPDFMergePage(queue_id: any) {
       if (s3Urls.length === 0) {
         const pdfBlob = jsPdfDoc.output('blob');
         const url = URL.createObjectURL(pdfBlob);
-
-        if (isMobile && (isAndroid || isIOS)) {
-          openPDFMobile(url);
-          return;
-        }
-
         setPreviewUrl(url);
         setShowPreview(true);
         setLoading(false);
@@ -359,12 +321,6 @@ export default function MultiPDFMergePage(queue_id: any) {
       const mergedPdfBytes = await mergedPdf.save();
       const blob = new Blob([mergedPdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
-
-      if (isMobile && (isAndroid || isIOS)) {
-        openPDFMobile(url);
-        return;
-      }
-
       setPreviewUrl(url);
       setShowPreview(true);
       setLoading(false);
@@ -372,7 +328,7 @@ export default function MultiPDFMergePage(queue_id: any) {
 
     } catch (error) {
       console.error('Error merging PDFs:', error);
-      setStatus('เกิดข้อผิดพลาด');
+      setStatus('เกิดข้อผิดพลาดในการสร้าง PDF');
       setLoading(false);
     }
   };
@@ -391,11 +347,6 @@ export default function MultiPDFMergePage(queue_id: any) {
     const pdfBlob = doc.output('blob');
     const url = URL.createObjectURL(pdfBlob);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
-
-    if (isMobile && (isAndroid || isIOS)) {
-      openPDFMobile(url);
-      return;
-    }
 
     setPreviewUrl(url);
     setShowPreview(true);
