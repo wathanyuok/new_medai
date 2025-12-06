@@ -488,7 +488,6 @@ export default function MultiPDFMergePage(queue_id: any) {
   };
 
   const openPDFOnIOS = (url: string) => {
-    // จริง ๆ พอเราใช้ location.replace แล้ว ฟังก์ชันนี้จะไม่ค่อยได้ใช้
     const link = document.createElement('a');
     link.href = url;
     link.target = '_blank';
@@ -507,14 +506,11 @@ export default function MultiPDFMergePage(queue_id: any) {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(url);
 
-      // --- แยก behavior ---
       if (isMobile) {
         if (isIOS) {
-          // iOS ใช้ code เดิม → replace ไปหน้า PDF เลย
           window.location.replace(url);
           return;
         } else if (shouldAutoOpen) {
-          // Android → เปิด tab ใหม่ แบบ code ใหม่
           window.open(url, '_blank');
           return;
         }
@@ -747,17 +743,13 @@ export default function MultiPDFMergePage(queue_id: any) {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(url);
 
-      // --- แยก behavior iOS / Android ตรงนี้ ---
       if (isMobile && shouldAutoOpen) {
         if (isIOS) {
-          // iOS: ใช้ window.location.replace ตาม code เดิม
           window.location.replace(url);
           return;
         } else {
-          // Android: เปิด tab ใหม่ ตาม code แบบใหม่
           window.open(url, '_blank');
-          // ยังเก็บ previewUrl ไว้ เผื่อกลับมา iframe ได้
-          // ไม่ต้อง return ก็ได้ แต่ถ้าไม่อยากให้โชว์ iframe ก็ใส่ return เลย
+          
           return;
         }
       }
@@ -840,7 +832,6 @@ export default function MultiPDFMergePage(queue_id: any) {
 
           <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
 
-            {/* Download — ทุก platform */}
             <button
               onClick={downloadPreviewedPDF}
               className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-blue-600 text-white text-sm sm:text-base rounded-md hover:bg-blue-700"
@@ -848,17 +839,15 @@ export default function MultiPDFMergePage(queue_id: any) {
               📥 ดาวน์โหลด PDF
             </button>
 
-            {/* Open PDF — mobile เท่านั้น (Android + iOS) */}
             {isMobile && (
               <button
                 onClick={openInNewTab}
                 className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-purple-600 text-white text-sm sm:text-base rounded-md hover:bg-purple-700"
               >
-                🔗 เปิดใน Tab ใหม่
+                🔗 เปิด PDF
               </button>
             )}
 
-            {/* Lab Only — desktop ONLY */}
             {!isMobile && (
               <button
                 onClick={previewJsPDFOnly}
@@ -871,7 +860,6 @@ export default function MultiPDFMergePage(queue_id: any) {
           </div>
         </div>
 
-        {/* PDF Viewer — desktop ONLY */}
         {!isMobile && (
           <>
             <div className="border border-gray-200 sm:border-2 rounded-lg overflow-hidden">
