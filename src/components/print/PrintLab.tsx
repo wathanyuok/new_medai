@@ -21,10 +21,16 @@ export default function MultiPDFMergePage(queue_id: any) {
   const [autoProcessed, setAutoProcessed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+  const [isAndroid, setIsAndroid] = useState(false);
+  const [showMobilePDF, setShowMobilePDF] = useState(false);
 
   const isIOSDevice = () => {
     return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  };
+
+  const isAndroidDevice = () => {
+    return /Android/i.test(navigator.userAgent);
   };
 
   const isMobileDevice = () => {
@@ -34,6 +40,7 @@ export default function MultiPDFMergePage(queue_id: any) {
   useEffect(() => {
     setIsMobile(isMobileDevice());
     setIsIOS(isIOSDevice());
+    setIsAndroid(isAndroidDevice());
   }, []);
 
   useEffect(() => {
@@ -231,6 +238,17 @@ export default function MultiPDFMergePage(queue_id: any) {
     return doc;
   };
 
+  // ฟังก์ชันกลับหน้าก่อนหน้า
+  const handleGoBack = () => {
+    // ลองปิด tab ก่อน (ถ้าเปิดจาก target="_blank")
+    if (window.opener) {
+      window.close();
+    } else {
+      // ถ้าปิดไม่ได้ ให้ back กลับ
+      window.history.back();
+    }
+  };
+
   const mergePDFs = async () => {
     try {
       const { PDFDocument, rgb } = await import('pdf-lib');
@@ -242,9 +260,16 @@ export default function MultiPDFMergePage(queue_id: any) {
         const pdfBlob = jsPdfDoc.output('blob');
         const url = URL.createObjectURL(pdfBlob);
         
-        // *** ใช้ replace() แทน href เพื่อให้กด back ครั้งเดียว ***
         if (isMobile) {
-          window.location.replace(url);
+          if (isIOS) {
+            // iOS: ใช้ replace ได้ปกติ
+            window.location.replace(url);
+          } else {
+            // Android: แสดง PDF ในหน้าเดิมพร้อมปุ่มกลับ
+            setPreviewUrl(url);
+            setShowMobilePDF(true);
+            setLoading(false);
+          }
           return;
         }
         
@@ -307,9 +332,16 @@ export default function MultiPDFMergePage(queue_id: any) {
       const blob = new Blob([mergedPdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
 
-      // *** ใช้ replace() แทน href เพื่อให้กด back ครั้งเดียว ***
       if (isMobile) {
-        window.location.replace(url);
+        if (isIOS) {
+          // iOS: ใช้ replace ได้ปกติ
+          window.location.replace(url);
+        } else {
+          // Android: แสดง PDF ในหน้าเดิมพร้อมปุ่มกลับ
+          setPreviewUrl(url);
+          setShowMobilePDF(true);
+          setLoading(false);
+        }
         return;
       }
 
@@ -341,7 +373,12 @@ export default function MultiPDFMergePage(queue_id: any) {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     
     if (isMobile) {
-      window.location.replace(url);
+      if (isIOS) {
+        window.location.replace(url);
+      } else {
+        setPreviewUrl(url);
+        setShowMobilePDF(true);
+      }
       return;
     }
     
@@ -349,6 +386,7 @@ export default function MultiPDFMergePage(queue_id: any) {
     setShowPreview(true);
   };
 
+  // Loading screen
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -371,6 +409,52 @@ export default function MultiPDFMergePage(queue_id: any) {
     );
   }
 
+  // Android: แสดง PDF เต็มจอพร้อมปุ่มกลับ
+  if (showMobilePDF && previewUrl) {
+    return (
+      <div className="fixed inset-0 bg-white z-50 flex flex-col">
+        {/* Header พร้อมปุ่มกลับ */}
+        <div className="flex items-center justify-between p-3 bg-gray-100 border-b shadow-sm">
+          <button
+            onClick={handleGoBack}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium active:bg-blue-700"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            กลับ
+          </button>
+          
+          <button
+            onClick={downloadPDF}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg font-medium active:bg-green-700"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            ดาวน์โหลด
+          </button>
+        </div>
+
+        {/* PDF Viewer เต็มจอ */}
+        <div className="flex-1 overflow-hidden">
+          <object
+            data={`${previewUrl}#toolbar=1&navpanes=0&scrollbar=1`}
+            type="application/pdf"
+            className="w-full h-full"
+          >
+            <iframe
+              src={`${previewUrl}#toolbar=1&navpanes=0&scrollbar=1`}
+              className="w-full h-full border-0"
+              title="PDF Preview"
+            />
+          </object>
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop: แสดง Preview
   return (
     <div className="container mx-auto p-6 max-w-full">
       {showPreview && previewUrl && (
