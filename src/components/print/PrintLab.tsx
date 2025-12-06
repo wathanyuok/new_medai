@@ -58,14 +58,29 @@ export default function MultiPDFMergePage(queue_id: any) {
   }, []);
 
   useEffect(() => {
+    const queueId = parseInt(queue_id.queue_id);
+    const storageKey = `labPdfProcessed-${queueId}`;
+
     const autoProcessPDF = async () => {
+      // ถ้ากด back กลับมาจากหน้า PDF → ให้ย้อนกลับอีกครั้ง
+      const processed = sessionStorage.getItem(storageKey);
+      if (processed === "processed") {
+        sessionStorage.removeItem(storageKey);
+        window.history.back();
+        return;
+      }
+
       if (dataLoaded && !autoProcessed && printData && Object.keys(printData).length > 0) {
         setAutoProcessed(true);
+        sessionStorage.setItem(storageKey, "processed");
         await mergePDFs();
       }
     };
-    autoProcessPDF();
-  }, [dataLoaded, printData, autoProcessed]);
+
+    if (dataLoaded && printData && Object.keys(printData).length > 0) {
+      autoProcessPDF();
+    }
+  }, [dataLoaded, printData, autoProcessed, queue_id.queue_id]);
 
   const GetQueue = async (queue_id: number) => {
     const token = localStorage.getItem('token');
@@ -160,7 +175,6 @@ export default function MultiPDFMergePage(queue_id: any) {
     const spacer = 6;
     let currentY = 5;
 
-    // Header
     const birthDate = new Date(printData.customer.ctm_birthdate);
     const today = new Date();
     let years = today.getFullYear() - birthDate.getFullYear();
@@ -193,7 +207,6 @@ export default function MultiPDFMergePage(queue_id: any) {
     doc.text(`Lab No. : ${printData.que_code}`, 75, currentY);
     doc.text(`Request Date. : ${new Date(printData.que_datetime).toLocaleString('en-GB', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}`, 120, currentY);
 
-    // Footer function
     const printFooter = () => {
       const pageHeight = doc.internal.pageSize.getHeight();
       doc.setDrawColor("#DDDAD0");
@@ -211,7 +224,6 @@ export default function MultiPDFMergePage(queue_id: any) {
     printFooter();
     currentY += spacer;
 
-    // Table
     autoTable(doc, {
       startY: currentY,
       theme: 'striped',
@@ -246,7 +258,6 @@ export default function MultiPDFMergePage(queue_id: any) {
         const pdfBlob = jsPdfDoc.output('blob');
         const url = URL.createObjectURL(pdfBlob);
         
-        // *** สำคัญ: สำหรับ mobile (iOS และ Android) redirect ไปที่ PDF ทันที ***
         if (isMobile) {
           window.location.href = url;
           return;
@@ -274,14 +285,12 @@ export default function MultiPDFMergePage(queue_id: any) {
         } catch {}
       };
 
-      // Add jsPDF pages
       const jsPdfDocument = await PDFDocument.load(jsPdfBytes);
       for (let i = 0; i < jsPdfDocument.getPageCount(); i++) {
         await convertPageToA4(jsPdfDocument.getPage(i));
       }
       setProgress(20);
 
-      // Process S3 files
       for (let i = 0; i < s3Urls.length; i++) {
         const url = s3Urls[i];
         const fileType = getFileType(url);
@@ -313,7 +322,6 @@ export default function MultiPDFMergePage(queue_id: any) {
       const blob = new Blob([mergedPdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
 
-      // *** สำคัญ: สำหรับ mobile (iOS และ Android) redirect ไปที่ PDF ทันที ***
       if (isMobile) {
         window.location.href = url;
         return;
@@ -355,7 +363,6 @@ export default function MultiPDFMergePage(queue_id: any) {
     setShowPreview(true);
   };
 
-  // *** แสดง Loading screen ขณะกำลังสร้าง PDF ***
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -378,7 +385,6 @@ export default function MultiPDFMergePage(queue_id: any) {
     );
   }
 
-  // *** Desktop: แสดง Preview ***
   return (
     <div className="container mx-auto p-6 max-w-full">
       {showPreview && previewUrl && (
