@@ -36,17 +36,24 @@ export default function MultiPDFMergePage(queue_id: any) {
     setIsIOS(isIOSDevice());
   }, []);
 
-  // *** สำหรับ Android: ถ้ากลับมาจากหน้า PDF ให้เด้ง back ต่ออีกรอบเอง ***
+  // ***** แก้ฝั่ง ANDROID — ถ้ากลับมาจาก PDF ให้ auto back ต่ออีก 1 step ทันที *****
   useEffect(() => {
-    if (!isMobile || isIOS) return; // ทำเฉพาะ Android
+    // เช็คจาก userAgent โดยตรง ไม่ใช้ state เพื่อกัน race
+    const ua = navigator.userAgent || '';
+    const isAndroid = /Android/i.test(ua);
+    if (!isAndroid) return;
+
     const queueId = parseInt(queue_id.queue_id);
     const storageKey = `labPdfBackAndroid-${queueId}`;
     const shouldGoBack = sessionStorage.getItem(storageKey);
+
     if (shouldGoBack === '1') {
+      // เคลียร์ flag แล้วเด้งกลับหน้าเดิม (หน้า ก่อน /ai/pr)
       sessionStorage.removeItem(storageKey);
       window.history.back();
     }
-  }, [isMobile, isIOS, queue_id.queue_id]);
+  }, [queue_id.queue_id]);
+  // ********************************************************************
 
   useEffect(() => {
     const queueId = parseInt(queue_id.queue_id);
@@ -256,10 +263,8 @@ export default function MultiPDFMergePage(queue_id: any) {
         
         if (isMobile) {
           if (isIOS) {
-            // iOS ใช้ replace ปกติ (ทดสอบว่าโอเคแล้ว)
             window.location.replace(url);
           } else {
-            // Android: ตั้ง flag ไว้ พอกลับเข้าหน้านี้จะ auto history.back()
             const queueId = parseInt(queue_id.queue_id);
             const storageKey = `labPdfBackAndroid-${queueId}`;
             sessionStorage.setItem(storageKey, '1');
