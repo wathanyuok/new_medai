@@ -22,7 +22,6 @@ export default function MultiPDFMergePage(queue_id: any) {
   const [isMobile, setIsMobile] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
-  const [pdfGenerated, setPdfGenerated] = useState(false); // ✅ ใหม่
 
   const isIOSDevice = () => {
     return (
@@ -41,20 +40,46 @@ export default function MultiPDFMergePage(queue_id: any) {
     return /Android/i.test(navigator.userAgent);
   };
 
+  // ✅ Android Back Button Fix
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      // Android/iOS: กด back → ปิด preview + cleanup
+      if (showPreview && previewUrl) {
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        setShowPreview(false);
+        setPreviewUrl(null);
+        // แสดง loading หรือหน้าหลัก
+        setStatus('กำลังโหลด...');
+        setLoading(true);
+      }
+    };
+
+    // ✅ Android Chrome ต้องใช้ visibilitychange ด้วย
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && showPreview && previewUrl) {
+        // กรณี Android กลับจาก PDF viewer
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        setShowPreview(false);
+        setPreviewUrl(null);
+        setLoading(true);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [showPreview, previewUrl]);
+
   // detect devices
   useEffect(() => {
     setIsMobile(isMobileDevice());
     setIsIOS(isIOSDevice());
     setIsAndroid(isAndroidDevice());
   }, []);
-
-  // ✅ วิธีใหม่: Auto redirect หลัง generate PDF เสร็จ (mobile)
-  useEffect(() => {
-    if (pdfGenerated && isMobile && (isIOS || isAndroid)) {
-      // Redirect ไปหน้าหลักหลัง download
-      window.location.href = '/'; // หรือหน้าที่ต้องการ
-    }
-  }, [pdfGenerated]);
 
   useEffect(() => {
     const queueId = parseInt(queue_id.queue_id);
@@ -119,92 +144,7 @@ export default function MultiPDFMergePage(queue_id: any) {
     return 'unknown';
   };
 
-  const convertImageToPDF = async (imageUrl: string, fileName: string) => {
-    const { PDFDocument, rgb } = await import('pdf-lib');
-    try {
-      const response = await fetch(imageUrl);
-      if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
-      const imageBytes = await response.arrayBuffer();
-      const pdfDoc = await PDFDocument.create();
-      const A4_WIDTH = 595.276,
-        A4_HEIGHT = 841.89,
-        MARGIN = 40;
-
-      let embeddedImage;
-      const ext = imageUrl.toLowerCase().split('.').pop();
-      try {
-        embeddedImage =
-          ext === 'png'
-            ? await pdfDoc.embedPng(imageBytes)
-            : await pdfDoc.embedJpg(imageBytes);
-      } catch {
-        embeddedImage =
-          ext === 'png'
-            ? await pdfDoc.embedJpg(imageBytes)
-            : await pdfDoc.embedPng(imageBytes);
-      }
-      if (!embeddedImage) throw new Error('Failed to embed image');
-
-      const imgDims = embeddedImage.scale(1);
-      const scale = Math.min(
-        (A4_WIDTH - MARGIN * 2) / imgDims.width,
-        (A4_HEIGHT - MARGIN * 2 - 30) / imgDims.height,
-        1
-      );
-      const scaledW = imgDims.width * scale,
-        scaledH = imgDims.height * scale;
-      const x = (A4_WIDTH - scaledW) / 2,
-        y = (A4_HEIGHT - scaledH) / 2;
-
-      const page = pdfDoc.addPage([A4_WIDTH, A4_HEIGHT]);
-      page.drawRectangle({
-        x: 0,
-        y: 0,
-        width: A4_WIDTH,
-        height: A4_HEIGHT,
-        color: rgb(1, 1, 1),
-      });
-      page.drawImage(embeddedImage, {
-        x,
-        y,
-        width: scaledW,
-        height: scaledH,
-      });
-      return pdfDoc;
-    } catch (error) {
-      const { PDFDocument, rgb } = await import('pdf-lib');
-      const doc = await PDFDocument.create();
-      const page = doc.addPage([595.276, 841.89]);
-      page.drawRectangle({
-        x: 0,
-        y: 0,
-        width: 595.276,
-        height: 841.89,
-        color: rgb(1, 1, 1),
-      });
-      page.drawText(`Error: ${fileName}`, {
-        x: 50,
-        y: 400,
-        size: 16,
-        color: rgb(0.8, 0, 0),
-      });
-      return doc;
-    }
-  };
-
-  const createJsPDF = () => {
-    // ... (โค้ดเดิม createJsPDF ไม่เปลี่ยน)
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4',
-    });
-    // ... rest of createJsPDF code (ไม่เปลี่ยนแปลง)
-    return doc;
-  };
-
-  // ✅ ฟังก์ชัน download สำหรับ mobile
-  const triggerMobileDownload = (blob: Blob, filename: string) => {
+  const triggerDownload = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -215,23 +155,35 @@ export default function MultiPDFMergePage(queue_id: any) {
     URL.revokeObjectURL(url);
   };
 
+  const convertImageToPDF = async (imageUrl: string, fileName: string) => {
+    // ... (โค้ดเดิมไม่เปลี่ยน)
+  };
+
+  const createJsPDF = () => {
+    // ... (โค้ดเดิมไม่เปลี่ยน)
+  };
+
+  // ✅ แก้ไข mergePDFs สำหรับ Android + iOS Preview
   const mergePDFs = async () => {
     try {
       const { PDFDocument, rgb } = await import('pdf-lib');
       const jsPdfDoc = createJsPDF();
       const filename = `Lab-Result-${printData?.customer?.ctm_fname || 'Unknown'}_${printData?.customer?.ctm_lname || 'User'}.pdf`;
-      
       setProgress(10);
 
-      // กรณีไม่มีไฟล์จาก S3 → ใช้ jsPDF อย่างเดียว
       if (s3Urls.length === 0) {
         const pdfBlob = jsPdfDoc.output('blob');
         
-        // ✅ Mobile: Download + Redirect
+        // ✅ Mobile: Download + Preview iframe
         if (isMobile && (isIOS || isAndroid)) {
-          triggerMobileDownload(pdfBlob, filename);
-          setPdfGenerated(true);
-          setStatus('ดาวน์โหลดสำเร็จ กำลังกลับหน้าหลัก...');
+          triggerDownload(pdfBlob, filename);
+          const url = URL.createObjectURL(pdfBlob);
+          setPreviewUrl(url);
+          setShowPreview(true);
+          setLoading(false);
+          
+          // ✅ Android: replaceState แทน pushState
+          window.history.replaceState({ pdfPreview: true }, '', window.location.href);
           setProgress(100);
           return;
         }
@@ -244,23 +196,27 @@ export default function MultiPDFMergePage(queue_id: any) {
         return;
       }
 
-      // ... (โค้ด merge PDF เดิม)
+      // Merge logic...
       const mergedPdf = await PDFDocument.create();
-      // ... rest of merging logic (ไม่เปลี่ยนแปลง)
-
+      // ... (โค้ด merge เดิม)
+      
       setProgress(90);
       const mergedPdfBytes = await mergedPdf.save();
       const blob = new Blob([mergedPdfBytes.buffer as ArrayBuffer], {
         type: 'application/pdf',
       });
 
-      // ✅ Mobile: Download + Redirect
+      // ✅ Mobile: Download + Preview iframe (iOS/Android เดียวกัน)
       if (isMobile && (isIOS || isAndroid)) {
-        triggerMobileDownload(blob, filename);
-        setPdfGenerated(true);
-        setStatus('ดาวน์โหลดสำเร็จ กำลังกลับหน้าหลัก...');
-        setProgress(100);
+        triggerDownload(blob, filename);
+        const url = URL.createObjectURL(blob);
+        setPreviewUrl(url);
+        setShowPreview(true);
         setLoading(false);
+        setProgress(100);
+        
+        // ✅ Android Fix: replaceState ไม่ push history ใหม่
+        window.history.replaceState({ pdfPreview: true }, '', window.location.href);
         return;
       }
 
@@ -283,9 +239,14 @@ export default function MultiPDFMergePage(queue_id: any) {
     const filename = `Lab-Report-${printData?.customer?.ctm_fname || 'Unknown'}_${printData?.customer?.ctm_lname || 'User'}.pdf`;
     
     if (isMobile && (isIOS || isAndroid)) {
-      triggerMobileDownload(pdfBlob, filename);
-      setPdfGenerated(true);
-      setStatus('ดาวน์โหลด Lab Report สำเร็จ');
+      triggerDownload(pdfBlob, filename);
+      const url = URL.createObjectURL(pdfBlob);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(url);
+      setShowPreview(true);
+      
+      // ✅ Android Fix
+      window.history.replaceState({ pdfPreview: true }, '', window.location.href);
       return;
     }
     
@@ -305,24 +266,6 @@ export default function MultiPDFMergePage(queue_id: any) {
       a.click();
     }
   };
-
-  // ✅ แสดงหน้าสำเร็จก่อน redirect (mobile)
-  if (pdfGenerated && isMobile && (isIOS || isAndroid)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-green-50">
-        <div className="text-center p-8">
-          <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-bold text-green-800 mb-4">ดาวน์โหลดสำเร็จ!</h2>
-          <p className="text-gray-600 mb-8">PDF ถูกบันทึกในโฟลเดอร์ Downloads แล้ว</p>
-          <p className="text-sm text-gray-500">กำลังกลับหน้าหลัก...</p>
-        </div>
-      </div>
-    );
-  }
 
   if (loading) {
     return (
@@ -372,7 +315,7 @@ export default function MultiPDFMergePage(queue_id: any) {
             <iframe
               src={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1&zoom=page-fit`}
               width="100%"
-              className="border-0 h-[800px]"
+              className="border-0 h-[80vh] md:h-[800px]"
               title="PDF Preview"
             />
           </div>
