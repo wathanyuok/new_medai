@@ -864,51 +864,58 @@ export default function MultiPDFMergePage(queue_id: any) {
               >
                 <span className="inline-block mr-1">📄</span>
                 <span className="hidden xs:inline">ดู Lab Report เท่านั้น</span>
+                <span className="xs:hidden">Lab Only</span>
               </button>
             </div>
           </div>
 
-          {/* PDF Viewer */}
-          <div className="border border-gray-200 sm:border-2 rounded-lg overflow-hidden">
-            {isMobile ? (
-              <div className="relative">
-                <object
-                  data={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1`}
-                  type="application/pdf"
-                  width="100%"
-                  height="600px"
-                >
-                  <iframe
-                    src={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1`}
-                    width="100%"
-                    height="600px"
-                  >
-                    <div className="p-8 text-center bg-gray-100">
-                      <p className="text-gray-600 mb-4">
-                        This browser does not support PDFs.
-                      </p>
-                      <button
-                        onClick={openInNewTab}
-                        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          {/* ⬇️ ตั้งแต่ตรงนี้ลงไป ซ่อนเฉพาะ Android (isMobile && !isIOS) */}
+          {(!isMobile || isIOS) && (
+            <>
+              {/* PDF Viewer */}
+              <div className="border border-gray-200 sm:border-2 rounded-lg overflow-hidden">
+                {isMobile ? (
+                  <div className="relative">
+                    <object
+                      data={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1`}
+                      type="application/pdf"
+                      width="100%"
+                      height="600px"
+                    >
+                      <iframe
+                        src={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1`}
+                        width="100%"
+                        height="600px"
                       >
-                        📄 เปิด PDF
-                      </button>
-                    </div>
-                  </iframe>
-                </object>
+                        <div className="p-8 text-center bg-gray-100">
+                          <p className="text-gray-600 mb-4">
+                            This browser does not support PDFs.
+                          </p>
+                          <button
+                            onClick={openInNewTab}
+                            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                          >
+                            📄 เปิด PDF
+                          </button>
+                        </div>
+                      </iframe>
+                    </object>
+                  </div>
+                ) : (
+                  <iframe
+                    src={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1&zoom=page-fit`}
+                    width="100%"
+                    height="100%"
+                    className="border-0 sm:h-[600px] md:h-[700px] lg:h-[800px]"
+                    title="PDF Preview"
+                  />
+                )}
               </div>
-            ) : (
-              <iframe
-                src={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1&zoom=page-fit`}
-                width="100%"
-                height="100%"
-                className="border-0 sm:h-[600px] md:h-[700px] lg:h-[800px]"
-                title="PDF Preview"
-              />
-            )}
-          </div>
+            </>
+          )}
         </div>
       )}
     </div>
   );
+
 }
