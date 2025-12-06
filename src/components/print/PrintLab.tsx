@@ -19,13 +19,9 @@ export default function MultiPDFMergePage(queue_id: any) {
   const [image, setImage] = useState('');
   const [dataLoaded, setDataLoaded] = useState(false);
   const [autoProcessed, setAutoProcessed] = useState(false);
-
   const [isMobile, setIsMobile] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
-
-  const qid = Number(queue_id.queue_id);
-  const processedKey = `lab-pdf-processed-${qid}`;
 
   const isIOSDevice = () => {
     return (
@@ -44,42 +40,36 @@ export default function MultiPDFMergePage(queue_id: any) {
     return /Android/i.test(navigator.userAgent);
   };
 
-  // ✅ detect devices
+  // detect devices
   useEffect(() => {
     setIsMobile(isMobileDevice());
     setIsIOS(isIOSDevice());
     setIsAndroid(isAndroidDevice());
   }, []);
 
-  // ✅ ถ้าหน้านี้ถูกเปิดหลังจากเคยสร้าง PDF แล้ว (mobile) → เด้ง back ออกไปเลย ไม่ต้องโชว์อะไร
+  // ✅ Back button handler สำหรับ Android
   useEffect(() => {
-    if (!isMobile) return;
-    try {
-      const flag =
-        typeof window !== 'undefined'
-          ? sessionStorage.getItem(processedKey)
-          : null;
-
-      if (flag === 'done') {
-        sessionStorage.removeItem(processedKey);
-        window.history.back();
+    const handlePopState = (event: PopStateEvent) => {
+      if (showPreview && previewUrl) {
+        setShowPreview(false);
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        setLoading(false);
       }
-    } catch (e) {
-      console.error('Error checking processed flag', e);
-    }
-  }, [isMobile, processedKey]);
+    };
 
-  // ✅ โหลดข้อมูลคิว + ไฟล์
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [showPreview, previewUrl]);
+
   useEffect(() => {
+    const queueId = parseInt(queue_id.queue_id);
     const fetchQueue = async () => {
       try {
         setStatus('กำลังโหลดข้อมูล...');
-        const lab = await GetQueue(qid);
+        const lab = await GetQueue(queueId);
         setPrintData(lab);
-
         const s3Array = lab.queue_file.map((file: any) => file.quef_path);
         setS3Urls(s3Array);
-
         setDataLoaded(true);
         setStatus('กำลังสร้าง PDF...');
       } catch (error) {
@@ -89,18 +79,10 @@ export default function MultiPDFMergePage(queue_id: any) {
       }
     };
     fetchQueue();
-  }, [qid]);
+  }, []);
 
-  // ✅ auto merge PDF ครั้งแรกเท่านั้น (ถ้าไม่มี flag processed)
   useEffect(() => {
     const autoProcessPDF = async () => {
-      // ถ้าเคย processed ไปแล้ว ไม่ต้องทำอะไร
-      const flag =
-        typeof window !== 'undefined'
-          ? sessionStorage.getItem(processedKey)
-          : null;
-      if (flag === 'done') return;
-
       if (
         dataLoaded &&
         !autoProcessed &&
@@ -112,7 +94,7 @@ export default function MultiPDFMergePage(queue_id: any) {
       }
     };
     autoProcessPDF();
-  }, [dataLoaded, printData, autoProcessed, processedKey]);
+  }, [dataLoaded, printData, autoProcessed]);
 
   const GetQueue = async (queue_id: number) => {
     const token = localStorage.getItem('token');
@@ -130,7 +112,7 @@ export default function MultiPDFMergePage(queue_id: any) {
       return res.data.data;
     } catch (error) {
       console.error('Error fetching lab result', error);
-      throw error;
+      return null;
     }
   };
 
@@ -418,6 +400,7 @@ export default function MultiPDFMergePage(queue_id: any) {
     return doc;
   };
 
+  // ✅ แก้ไข mergePDFs สำหรับ Android back button
   const mergePDFs = async () => {
     try {
       const { PDFDocument, rgb } = await import('pdf-lib');
@@ -425,21 +408,22 @@ export default function MultiPDFMergePage(queue_id: any) {
       const jsPdfBytes = jsPdfDoc.output('arraybuffer');
       setProgress(10);
 
-      // ถ้าไม่มีไฟล์จาก S3 → ใช้ jsPDF อย่างเดียว
+      // กรณีไม่มีไฟล์จาก S3 → ใช้ jsPDF อย่างเดียว
       if (s3Urls.length === 0) {
         const pdfBlob = jsPdfDoc.output('blob');
         const url = URL.createObjectURL(pdfBlob);
 
-        // mark ว่าทำแล้ว
-        sessionStorage.setItem(processedKey, 'done');
-
-        // มือถือ (iOS + Android) → เปิด PDF ด้วย replace
+        // ✅ Mobile: เปิด tab ใหม่ + pushState (Android + iOS)
         if (isMobile && (isIOS || isAndroid)) {
-          window.location.replace(url);
+          const pdfWindow = window.open(url, '_blank');
+          if (pdfWindow) {
+            window.history.pushState({ pdfOpened: true }, '', window.location.href);
+          }
+          setLoading(false);
           return;
         }
 
-        // Desktop + อื่น ๆ
+        // Desktop
         setPreviewUrl(url);
         setShowPreview(true);
         setLoading(false);
@@ -518,15 +502,18 @@ export default function MultiPDFMergePage(queue_id: any) {
       });
       const url = URL.createObjectURL(blob);
 
-      // mark ว่าทำแล้ว
-      sessionStorage.setItem(processedKey, 'done');
-
-      // มือถือ (iOS + Android) → เปิด PDF ด้วย replace
+      // ✅ Mobile: เปิด tab ใหม่ + pushState (Android + iOS)
       if (isMobile && (isIOS || isAndroid)) {
-        window.location.replace(url);
+        const pdfWindow = window.open(url, '_blank');
+        if (pdfWindow) {
+          window.history.pushState({ pdfOpened: true }, '', window.location.href);
+        }
+        setLoading(false);
+        setProgress(100);
         return;
       }
 
+      // Desktop
       setPreviewUrl(url);
       setShowPreview(true);
       setLoading(false);
@@ -538,6 +525,27 @@ export default function MultiPDFMergePage(queue_id: any) {
     }
   };
 
+  // ✅ แก้ไข previewJsPDFOnly สำหรับ Android back button
+  const previewJsPDFOnly = () => {
+    const doc = createJsPDF();
+    const pdfBlob = doc.output('blob');
+    const url = URL.createObjectURL(pdfBlob);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+
+    // ✅ Mobile: เปิด tab ใหม่ + pushState
+    if (isMobile && (isIOS || isAndroid)) {
+      const pdfWindow = window.open(url, '_blank');
+      if (pdfWindow) {
+        window.history.pushState({ pdfOpened: true }, '', window.location.href);
+      }
+      return;
+    }
+
+    // Desktop
+    setPreviewUrl(url);
+    setShowPreview(true);
+  };
+
   const downloadPDF = () => {
     if (previewUrl) {
       const a = document.createElement('a');
@@ -547,24 +555,6 @@ export default function MultiPDFMergePage(queue_id: any) {
       }_${printData?.customer?.ctm_lname || 'User'}.pdf`;
       a.click();
     }
-  };
-
-  const previewJsPDFOnly = () => {
-    const doc = createJsPDF();
-    const pdfBlob = doc.output('blob');
-    const url = URL.createObjectURL(pdfBlob);
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-
-    // mark ว่าทำแล้ว
-    sessionStorage.setItem(processedKey, 'done');
-
-    if (isMobile && (isIOS || isAndroid)) {
-      window.location.replace(url);
-      return;
-    }
-
-    setPreviewUrl(url);
-    setShowPreview(true);
   };
 
   if (loading) {
@@ -589,7 +579,6 @@ export default function MultiPDFMergePage(queue_id: any) {
     );
   }
 
-  // Desktop / non-mobile ยังมี preview mode เหมือนเดิม
   return (
     <div className="container mx-auto p-6 max-w-full">
       {showPreview && previewUrl && (
