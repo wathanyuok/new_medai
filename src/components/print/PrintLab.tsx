@@ -828,94 +828,71 @@ export default function MultiPDFMergePage(queue_id: any) {
   const imageCount = typeList.filter((t) => t === 'image').length;
 
   return (
-    <div className="container mx-auto p-6 max-w-full">
-      {/* Android / Desktop preview (iOS ส่วนใหญ่จะโดน replace ออกไปแล้ว) */}
-      {showPreview && previewUrl && (
-        <div className="bg-white shadow-lg rounded-lg p-3 sm:p-6 mt-6">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 space-y-3 sm:space-y-0">
-            <h2 className="text-lg sm:text-xl font-bold text-gray-800 text-center sm:text-left">
-              PDF Preview
-            </h2>
-            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+  <div className="container mx-auto p-6 max-w-full">
+    {showPreview && previewUrl && (
+      <div className="bg-white shadow-lg rounded-lg p-3 sm:p-6 mt-6">
+
+        {/* Header + ปุ่มบน */}
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 space-y-3 sm:space-y-0">
+          <h2 className="text-lg sm:text-xl font-bold text-gray-800 text-center sm:text-left">
+            PDF Preview
+          </h2>
+
+          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+
+            {/* Download — ทุก platform */}
+            <button
+              onClick={downloadPreviewedPDF}
+              className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-blue-600 text-white text-sm sm:text-base rounded-md hover:bg-blue-700"
+            >
+              📥 ดาวน์โหลด PDF
+            </button>
+
+            {/* Open PDF — mobile เท่านั้น (Android + iOS) */}
+            {isMobile && (
               <button
-                onClick={downloadPreviewedPDF}
-                className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-blue-600 text-white text-sm sm:text-base rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                onClick={openInNewTab}
+                className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-purple-600 text-white text-sm sm:text-base rounded-md hover:bg-purple-700"
               >
-                <span className="inline-block mr-1">📥</span>
-                <span className="hidden xs:inline">ดาวน์โหลด PDF</span>
-                <span className="xs:hidden">Download</span>
+                🔗 เปิดใน Tab ใหม่
               </button>
+            )}
 
-              {isMobile && (
-                <button
-                  onClick={openInNewTab}
-                  className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-purple-600 text-white text-sm sm:text-base rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors"
-                >
-                  <span className="inline-block mr-1">🔗</span>
-                  <span className="hidden xs:inline">เปิดใน Tab ใหม่</span>
-                  <span className="xs:hidden">Open PDF</span>
-                </button>
-              )}
-
+            {/* Lab Only — desktop ONLY */}
+            {!isMobile && (
               <button
                 onClick={previewJsPDFOnly}
-                disabled={loading || !printData || Object.keys(printData).length === 0}
-                className="w-full sm:w-auto py-2 px-3 sm:px-4 bg-green-600 text-white text-sm sm:text-base rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-400 transition-colors"
+                disabled={loading}
+                className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-green-600 text-white text-sm sm:text-base rounded-md hover:bg-green-700"
               >
-                <span className="inline-block mr-1">📄</span>
-                <span className="hidden xs:inline">ดู Lab Report เท่านั้น</span>
-                <span className="xs:hidden">Lab Only</span>
+                📄 Lab Only
               </button>
-            </div>
+            )}
           </div>
-
-          {/* ⬇️ ตั้งแต่ตรงนี้ลงไป ซ่อนเฉพาะ Android (isMobile && !isIOS) */}
-          {(!isMobile || isIOS) && (
-            <>
-              {/* PDF Viewer */}
-              <div className="border border-gray-200 sm:border-2 rounded-lg overflow-hidden">
-                {isMobile ? (
-                  <div className="relative">
-                    <object
-                      data={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1`}
-                      type="application/pdf"
-                      width="100%"
-                      height="600px"
-                    >
-                      <iframe
-                        src={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1`}
-                        width="100%"
-                        height="600px"
-                      >
-                        <div className="p-8 text-center bg-gray-100">
-                          <p className="text-gray-600 mb-4">
-                            This browser does not support PDFs.
-                          </p>
-                          <button
-                            onClick={openInNewTab}
-                            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                          >
-                            📄 เปิด PDF
-                          </button>
-                        </div>
-                      </iframe>
-                    </object>
-                  </div>
-                ) : (
-                  <iframe
-                    src={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1&zoom=page-fit`}
-                    width="100%"
-                    height="100%"
-                    className="border-0 sm:h-[600px] md:h-[700px] lg:h-[800px]"
-                    title="PDF Preview"
-                  />
-                )}
-              </div>
-            </>
-          )}
         </div>
-      )}
-    </div>
-  );
+
+        {/* PDF Viewer — desktop ONLY */}
+        {!isMobile && (
+          <>
+            <div className="border border-gray-200 sm:border-2 rounded-lg overflow-hidden">
+              <iframe
+                src={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1&zoom=page-fit`}
+                width="100%"
+                height="100%"
+                className="border-0 sm:h-[600px] md:h-[700px] lg:h-[800px]"
+                title="PDF Preview"
+              />
+            </div>
+
+            <div className="mt-3 p-2 sm:p-3 bg-gray-50 rounded text-xs sm:text-sm text-gray-600">
+              ใช้ toolbar ด้านบนเพื่อเลื่อนหน้า / ซูม PDF
+            </div>
+          </>
+        )}
+      </div>
+    )}
+  </div>
+);
+
 
 }
