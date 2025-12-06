@@ -14,7 +14,6 @@ export default function MultiPDFMergePage(queue_id: any) {
   const [status, setStatus] = useState('กำลังโหลด...');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
-  const [currentStep, setCurrentStep] = useState('');
   const [progress, setProgress] = useState(0);
   const [printData, setPrintData] = useState<any>({});
   const [image, setImage] = useState("");
@@ -58,29 +57,14 @@ export default function MultiPDFMergePage(queue_id: any) {
   }, []);
 
   useEffect(() => {
-    const queueId = parseInt(queue_id.queue_id);
-    const storageKey = `labPdfProcessed-${queueId}`;
-
     const autoProcessPDF = async () => {
-      // ถ้ากด back กลับมาจากหน้า PDF → ให้ย้อนกลับอีกครั้ง
-      const processed = sessionStorage.getItem(storageKey);
-      if (processed === "processed") {
-        sessionStorage.removeItem(storageKey);
-        window.history.back();
-        return;
-      }
-
       if (dataLoaded && !autoProcessed && printData && Object.keys(printData).length > 0) {
         setAutoProcessed(true);
-        sessionStorage.setItem(storageKey, "processed");
         await mergePDFs();
       }
     };
-
-    if (dataLoaded && printData && Object.keys(printData).length > 0) {
-      autoProcessPDF();
-    }
-  }, [dataLoaded, printData, autoProcessed, queue_id.queue_id]);
+    autoProcessPDF();
+  }, [dataLoaded, printData, autoProcessed]);
 
   const GetQueue = async (queue_id: number) => {
     const token = localStorage.getItem('token');
@@ -258,8 +242,9 @@ export default function MultiPDFMergePage(queue_id: any) {
         const pdfBlob = jsPdfDoc.output('blob');
         const url = URL.createObjectURL(pdfBlob);
         
+        // *** ใช้ replace() แทน href เพื่อให้กด back ครั้งเดียว ***
         if (isMobile) {
-          window.location.href = url;
+          window.location.replace(url);
           return;
         }
         
@@ -322,8 +307,9 @@ export default function MultiPDFMergePage(queue_id: any) {
       const blob = new Blob([mergedPdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
 
+      // *** ใช้ replace() แทน href เพื่อให้กด back ครั้งเดียว ***
       if (isMobile) {
-        window.location.href = url;
+        window.location.replace(url);
         return;
       }
 
@@ -355,7 +341,7 @@ export default function MultiPDFMergePage(queue_id: any) {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     
     if (isMobile) {
-      window.location.href = url;
+      window.location.replace(url);
       return;
     }
     
