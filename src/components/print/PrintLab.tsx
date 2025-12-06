@@ -47,9 +47,10 @@ export default function MultiPDFMergePage(queue_id: any) {
   useEffect(() => {
     const queueId = parseInt(queue_id.queue_id);
     const sessionKey = `lab-pdf-auto-${queueId}`;
-    const autoBack = typeof window !== 'undefined'
-      ? sessionStorage.getItem(sessionKey)
-      : null;
+    const autoBack =
+      typeof window !== 'undefined'
+        ? sessionStorage.getItem(sessionKey)
+        : null;
 
     if (isAndroid && autoBack === 'back') {
       sessionStorage.removeItem(sessionKey);
@@ -92,11 +93,15 @@ export default function MultiPDFMergePage(queue_id: any) {
   const GetQueue = async (queue_id: number) => {
     const token = localStorage.getItem('token');
     const res = await axios.get(
-      `${process.env.NEXT_PUBLIC_API_URL || 'https://shop.api-apsx.co/crm'}/queue/check/lab/${queue_id}`,
+      `${
+        process.env.NEXT_PUBLIC_API_URL || 'https://shop.api-apsx.co/crm'
+      }/queue/check/lab/${queue_id}`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
 
-    const img = await fetchS3Image('shop/S9d95a914-8929-4738-9693-81e133b8f03b.jpg');
+    const img = await fetchS3Image(
+      'shop/S9d95a914-8929-4738-9693-81e133b8f03b.jpg'
+    );
     setImage(img!);
 
     return res.data.data;
@@ -105,7 +110,8 @@ export default function MultiPDFMergePage(queue_id: any) {
   const getFileType = (url: string) => {
     const ext = url.split('.').pop()?.toLowerCase();
     if (ext === 'pdf') return 'pdf';
-    if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext || '')) return 'image';
+    if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext || ''))
+      return 'image';
     return 'unknown';
   };
 
@@ -181,7 +187,11 @@ export default function MultiPDFMergePage(queue_id: any) {
   };
 
   const createJsPDF = () => {
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+    });
 
     doc.addFileToVFS('TH-Niramit-AS-normal.ttf', font.data);
     doc.addFileToVFS('TH-Niramit-AS-Bold-bold.ttf', fontBold.data);
@@ -285,8 +295,18 @@ export default function MultiPDFMergePage(queue_id: any) {
       doc.setDrawColor('#DDDAD0');
       doc.setTextColor('#7A7A73');
       doc.setLineWidth(0.5);
-      doc.line(5, pageHeight - 21, doc.internal.pageSize.getWidth() - 5, pageHeight - 21);
-      doc.line(5, pageHeight - 9, doc.internal.pageSize.getWidth() - 5, pageHeight - 9);
+      doc.line(
+        5,
+        pageHeight - 21,
+        doc.internal.pageSize.getWidth() - 5,
+        pageHeight - 21
+      );
+      doc.line(
+        5,
+        pageHeight - 9,
+        doc.internal.pageSize.getWidth() - 5,
+        pageHeight - 9
+      );
       doc.setFontSize(10);
       doc.text(
         `Reported by: ${printData.que_lab_analyst},${printData.que_lab_analyst_license}`,
@@ -368,12 +388,14 @@ export default function MultiPDFMergePage(queue_id: any) {
 
   const mergePDFs = async () => {
     try {
-      const { PDFDocument, rgb } = await import('pdf-lib');
+      const { PDFDocument } = await import('pdf-lib');
 
       const baseDoc = createJsPDF();
       const baseBytes = baseDoc.output('arraybuffer');
 
       const merged = await PDFDocument.create();
+
+      // ✅ กำหนด A4 เป็น tuple ให้ตรง type
       const A4: [number, number] = [595.276, 841.89];
 
       const embedPage = async (srcPage: any) => {
@@ -403,16 +425,19 @@ export default function MultiPDFMergePage(queue_id: any) {
           const bytes = await res.arrayBuffer();
           const pdf = await PDFDocument.load(bytes);
           for (let p of pdf.getPages()) await embedPage(p);
-
         } else if (type === 'image') {
-          const imgPdf = await convertImageToPDF(url, url.split('/').pop() || 'image');
+          const imgPdf = await convertImageToPDF(
+            url,
+            url.split('/').pop() || 'image'
+          );
           for (let p of imgPdf.getPages()) await embedPage(p);
         }
       }
 
       const finalBytes = await merged.save();
-      const arrayBuffer = finalBytes.buffer.slice(0);
-      const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+
+      // ✅ แก้ error: ใช้ Uint8Array ตรง ๆ แทน slice() ที่ให้ SharedArrayBuffer
+      const blob = new Blob([finalBytes], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
 
       // ---- แยกตาม device ----
@@ -423,13 +448,13 @@ export default function MultiPDFMergePage(queue_id: any) {
       }
 
       if (isMobile && isAndroid) {
-        // Android → แสดงใน iframe ในหน้านี้ (ไม่ออกจากหน้านี้เลย)
+        // Android → แสดงใน iframe ในหน้านี้
         setPreviewUrl(url);
         setShowPreview(true);
         setLoading(false);
 
         const key = `lab-pdf-auto-${queue_id.queue_id}`;
-        sessionStorage.setItem(key, 'back'); // เผื่อใช้ auto back pattern เดิมถ้าต้อง
+        sessionStorage.setItem(key, 'back'); // ถ้าจะใช้ auto-back ต่อ
         return;
       }
 
@@ -437,7 +462,6 @@ export default function MultiPDFMergePage(queue_id: any) {
       setPreviewUrl(url);
       setShowPreview(true);
       setLoading(false);
-
     } catch (err) {
       console.error(err);
       setStatus('เกิดข้อผิดพลาด');
@@ -498,7 +522,7 @@ export default function MultiPDFMergePage(queue_id: any) {
     );
   }
 
-  // Android / Desktop แสดง preview เหมือนกัน (ไม่มีข้อความพิเศษ)
+  // Android / Desktop แสดง preview เหมือนกัน
   return (
     <div className="container mx-auto p-6 max-w-full">
       {showPreview && previewUrl && (
