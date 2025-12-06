@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
-import { autoTable } from 'jspdf-autotable';
-import axios from 'axios';
-import font from '@/font/font.json';
-import fontBold from '@/font/fontBold.json';
+import { autoTable } from 'jspdf-autotable'
+import axios from 'axios'
+import font from '@/font/font.json'
+import fontBold from '@/font/fontBold.json'
 import { fetchS3Image } from '@/utils/getS3file';
 
 export default function MultiPDFMergePage(queue_id: any) {
@@ -16,19 +16,26 @@ export default function MultiPDFMergePage(queue_id: any) {
   const [showPreview, setShowPreview] = useState(false);
   const [progress, setProgress] = useState(0);
   const [printData, setPrintData] = useState<any>({});
-  const [image, setImage] = useState('');
+  const [image, setImage] = useState("");
   const [dataLoaded, setDataLoaded] = useState(false);
   const [autoProcessed, setAutoProcessed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isAndroid, setIsAndroid] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
 
-  const isMobileDevice = () => {
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-      navigator.userAgent
-    );
+  const detectDevice = () => {
+    const ua = navigator.userAgent;
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+    const isAndroidDevice = /Android/i.test(ua);
+    const isIOSDevice = /iPhone|iPad|iPod/i.test(ua);
+    return { isMobile: isMobileDevice, isAndroid: isAndroidDevice, isIOS: isIOSDevice };
   };
 
   useEffect(() => {
-    setIsMobile(isMobileDevice());
+    const { isMobile: mobile, isAndroid, isIOS } = detectDevice();
+    setIsMobile(mobile);
+    setIsAndroid(isAndroid);
+    setIsIOS(isIOS);
   }, []);
 
   useEffect(() => {
@@ -72,7 +79,7 @@ export default function MultiPDFMergePage(queue_id: any) {
       setImage(shop_image!);
       return res.data.data;
     } catch (error) {
-      console.error('Error fetching lab result', error);
+      console.error("Error fetching lab result", error);
       return null;
     }
   };
@@ -91,18 +98,14 @@ export default function MultiPDFMergePage(queue_id: any) {
       if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
       const imageBytes = await response.arrayBuffer();
       const pdfDoc = await PDFDocument.create();
-      const A4_WIDTH = 595.276,
-        A4_HEIGHT = 841.89,
-        MARGIN = 40;
+      const A4_WIDTH = 595.276, A4_HEIGHT = 841.89, MARGIN = 40;
 
       let embeddedImage;
       const ext = imageUrl.toLowerCase().split('.').pop();
       try {
-        embeddedImage =
-          ext === 'png' ? await pdfDoc.embedPng(imageBytes) : await pdfDoc.embedJpg(imageBytes);
+        embeddedImage = ext === 'png' ? await pdfDoc.embedPng(imageBytes) : await pdfDoc.embedJpg(imageBytes);
       } catch {
-        embeddedImage =
-          ext === 'png' ? await pdfDoc.embedJpg(imageBytes) : await pdfDoc.embedPng(imageBytes);
+        embeddedImage = ext === 'png' ? await pdfDoc.embedJpg(imageBytes) : await pdfDoc.embedPng(imageBytes);
       }
       if (!embeddedImage) throw new Error('Failed to embed image');
 
@@ -112,38 +115,19 @@ export default function MultiPDFMergePage(queue_id: any) {
         (A4_HEIGHT - MARGIN * 2 - 30) / imgDims.height,
         1
       );
-      const scaledW = imgDims.width * scale,
-        scaledH = imgDims.height * scale;
-      const x = (A4_WIDTH - scaledW) / 2,
-        y = (A4_HEIGHT - scaledH) / 2;
+      const scaledW = imgDims.width * scale, scaledH = imgDims.height * scale;
+      const x = (A4_WIDTH - scaledW) / 2, y = (A4_HEIGHT - scaledH) / 2;
 
       const page = pdfDoc.addPage([A4_WIDTH, A4_HEIGHT]);
-      page.drawRectangle({
-        x: 0,
-        y: 0,
-        width: A4_WIDTH,
-        height: A4_HEIGHT,
-        color: rgb(1, 1, 1),
-      });
+      page.drawRectangle({ x: 0, y: 0, width: A4_WIDTH, height: A4_HEIGHT, color: rgb(1, 1, 1) });
       page.drawImage(embeddedImage, { x, y, width: scaledW, height: scaledH });
       return pdfDoc;
     } catch (error) {
       const { PDFDocument, rgb } = await import('pdf-lib');
       const doc = await PDFDocument.create();
       const page = doc.addPage([595.276, 841.89]);
-      page.drawRectangle({
-        x: 0,
-        y: 0,
-        width: 595.276,
-        height: 841.89,
-        color: rgb(1, 1, 1),
-      });
-      page.drawText(`Error: ${fileName}`, {
-        x: 50,
-        y: 400,
-        size: 16,
-        color: rgb(0.8, 0, 0),
-      });
+      page.drawRectangle({ x: 0, y: 0, width: 595.276, height: 841.89, color: rgb(1, 1, 1) });
+      page.drawText(`Error: ${fileName}`, { x: 50, y: 400, size: 16, color: rgb(0.8, 0, 0) });
       return doc;
     }
   };
@@ -175,7 +159,7 @@ export default function MultiPDFMergePage(queue_id: any) {
       [item.chk_flag],
       [item.chk_unit],
       [item.chk_direction_detail],
-      [item.chk_old],
+      [item.chk_old]
     ]);
 
     const spacer = 6;
@@ -186,14 +170,8 @@ export default function MultiPDFMergePage(queue_id: any) {
     let years = today.getFullYear() - birthDate.getFullYear();
     let months = today.getMonth() - birthDate.getMonth();
     let days = today.getDate() - birthDate.getDate();
-    if (days < 0) {
-      months--;
-      days += new Date(today.getFullYear(), today.getMonth(), 0).getDate();
-    }
-    if (months < 0) {
-      years--;
-      months += 12;
-    }
+    if (days < 0) { months--; days += new Date(today.getFullYear(), today.getMonth(), 0).getDate(); }
+    if (months < 0) { years--; months += 12; }
     const age = `${years} ปี ${months} เดือน ${days} วัน`;
 
     doc.setFontSize(16);
@@ -216,9 +194,7 @@ export default function MultiPDFMergePage(queue_id: any) {
     doc.setFont('TH-Niramit', 'bold');
     doc.setFontSize(14);
     doc.text(
-      `Name : ${
-        printData.customer.ctm_prefix == 'ไม่ระบุ' ? '' : printData.customer.ctm_prefix
-      } ${printData.customer.ctm_fname} ${printData.customer.ctm_lname}`,
+      `Name : ${printData.customer.ctm_prefix == 'ไม่ระบุ' ? '' : printData.customer.ctm_prefix} ${printData.customer.ctm_fname} ${printData.customer.ctm_lname}`,
       25,
       currentY
     );
@@ -234,7 +210,7 @@ export default function MultiPDFMergePage(queue_id: any) {
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-        hour12: false,
+        hour12: false
       })}`,
       120,
       currentY
@@ -242,24 +218,16 @@ export default function MultiPDFMergePage(queue_id: any) {
 
     const printFooter = () => {
       const pageHeight = doc.internal.pageSize.getHeight();
-      doc.setDrawColor('#DDDAD0');
-      doc.setTextColor('#7A7A73');
+      doc.setDrawColor("#DDDAD0");
+      doc.setTextColor("#7A7A73");
       doc.setLineWidth(0.5);
       doc.line(5, pageHeight - 21, doc.internal.pageSize.getWidth() - 5, pageHeight - 21);
       doc.line(5, pageHeight - 9, doc.internal.pageSize.getWidth() - 5, pageHeight - 9);
       doc.setFontSize(10);
+      doc.text(`Reported by: ${printData.que_lab_analyst},${printData.que_lab_analyst_license}`, 10, pageHeight - 17);
+      doc.text(`Authorized by: ${printData.que_lab_inspector},${printData.que_lab_inspector_license}`, 10, pageHeight - 14);
       doc.text(
-        `Reported by: ${printData.que_lab_analyst},${printData.que_lab_analyst_license}`,
-        10,
-        pageHeight - 17
-      );
-      doc.text(
-        `Authorized by: ${printData.que_lab_inspector},${printData.que_lab_inspector_license}`,
-        10,
-        pageHeight - 14
-      );
-      doc.text(
-        `This report has been approved electronically. Infomation contained in this.document is CONFIDENTIAL. Copyright: Issued by Bangkok Be Health`,
+        `This report has been approved electronically. Infomation contained in this document is CONFIDENTIAL. Copyright: Issued by Bangkok Be Health`,
         10,
         pageHeight - 11
       );
@@ -270,7 +238,7 @@ export default function MultiPDFMergePage(queue_id: any) {
           year: 'numeric',
           hour: '2-digit',
           minute: '2-digit',
-          hour12: false,
+          hour12: false
         })}`,
         120,
         pageHeight - 14
@@ -284,15 +252,8 @@ export default function MultiPDFMergePage(queue_id: any) {
       startY: currentY,
       theme: 'striped',
       margin: { left: 5, right: 5, top: 72, bottom: 35 },
-      styles: { font: 'TH-Niramit', fontSize: 13, fontStyle: 'bold', textColor: 'black' },
-      headStyles: {
-        fillColor: [255, 255, 255],
-        textColor: 'black',
-        fontStyle: 'bold',
-        halign: 'center',
-        valign: 'middle',
-        lineWidth: 0,
-      },
+      styles: { font: "TH-Niramit", fontSize: 13, fontStyle: "bold", textColor: "black" },
+      headStyles: { fillColor: [255, 255, 255], textColor: "black", fontStyle: "bold", halign: 'center', valign: 'middle', lineWidth: 0 },
       columnStyles: {
         0: { halign: 'left', cellWidth: 25, fontSize: 10, valign: 'middle' },
         1: { halign: 'center', cellWidth: 20, fontSize: 9, valign: 'middle' },
@@ -303,22 +264,25 @@ export default function MultiPDFMergePage(queue_id: any) {
         6: { halign: 'center', cellWidth: 35, fontSize: 10, valign: 'middle' },
         7: { halign: 'center', cellWidth: 40, fontSize: 10, valign: 'middle' },
       },
-      head: [
-        [
-          'TEST NAME',
-          'SPECIMEN',
-          'METHOD',
-          'RESULT',
-          'FLAG',
-          'UNIT',
-          'REFERENCE RANGE',
-          'PREVIOUS RESULT',
-        ],
-      ],
+      head: [['TEST NAME', 'SPECIMEN', 'METHOD', 'RESULT', 'FLAG', 'UNIT', 'REFERENCE RANGE', 'PREVIOUS RESULT']],
       body: rows,
     });
 
     return doc;
+  };
+
+  const openPDFMobile = async (pdfBlob: Blob) => {
+    const pdfUrl = URL.createObjectURL(pdfBlob);
+    
+    // เปิดใน new tab (back button ทำงานปกติทุก platform)
+    const pdfWindow = window.open(pdfUrl, '_blank');
+    
+    if (pdfWindow) {
+      // ปรับ history ใน new tab เพื่อให้ back ครั้งเดียวปิด PDF
+      pdfWindow.addEventListener('load', () => {
+        pdfWindow.history.replaceState(null, '', pdfUrl);
+      });
+    }
   };
 
   const mergePDFs = async () => {
@@ -330,14 +294,14 @@ export default function MultiPDFMergePage(queue_id: any) {
 
       if (s3Urls.length === 0) {
         const pdfBlob = jsPdfDoc.output('blob');
-        const url = URL.createObjectURL(pdfBlob);
 
-        if (isMobile) {
-          // มือถือ: replace → ประวัติเป็น [หน้าเดิม, PDF] กด back ครั้งเดียว
-          window.location.replace(url);
+        if (isMobile && (isAndroid || isIOS)) {
+          await openPDFMobile(pdfBlob);
+          setLoading(false);
           return;
         }
 
+        const url = URL.createObjectURL(pdfBlob);
         setPreviewUrl(url);
         setShowPreview(true);
         setLoading(false);
@@ -345,28 +309,19 @@ export default function MultiPDFMergePage(queue_id: any) {
       }
 
       const mergedPdf = await PDFDocument.create();
-      const A4_WIDTH = 595.276,
-        A4_HEIGHT = 841.89;
+      const A4_WIDTH = 595.276, A4_HEIGHT = 841.89;
 
       const convertPageToA4 = async (sourcePage: any) => {
         const newPage = mergedPdf.addPage([A4_WIDTH, A4_HEIGHT]);
-        newPage.drawRectangle({
-          x: 0,
-          y: 0,
-          width: A4_WIDTH,
-          height: A4_HEIGHT,
-          color: rgb(1, 1, 1),
-        });
+        newPage.drawRectangle({ x: 0, y: 0, width: A4_WIDTH, height: A4_HEIGHT, color: rgb(1, 1, 1) });
         try {
           const embeddedPage = await mergedPdf.embedPage(sourcePage);
           const { width: origW, height: origH } = embeddedPage;
           const scale = Math.min(A4_WIDTH / origW, A4_HEIGHT / origH);
-          const scaledW = origW * scale,
-            scaledH = origH * scale;
-          const x = (A4_WIDTH - scaledW) / 2,
-            y = (A4_HEIGHT - scaledH) / 2;
+          const scaledW = origW * scale, scaledH = origH * scale;
+          const x = (A4_WIDTH - scaledW) / 2, y = (A4_HEIGHT - scaledH) / 2;
           newPage.drawPage(embeddedPage, { x, y, width: scaledW, height: scaledH });
-        } catch { }
+        } catch {}
       };
 
       const jsPdfDocument = await PDFDocument.load(jsPdfBytes);
@@ -391,10 +346,7 @@ export default function MultiPDFMergePage(queue_id: any) {
               }
             }
           } else if (fileType === 'image') {
-            const imagePdf = await convertImageToPDF(
-              url,
-              url.split('/').pop() || 'image'
-            );
+            const imagePdf = await convertImageToPDF(url, url.split('/').pop() || 'image');
             for (let j = 0; j < imagePdf.getPageCount(); j++) {
               await convertPageToA4(imagePdf.getPage(j));
             }
@@ -406,23 +358,23 @@ export default function MultiPDFMergePage(queue_id: any) {
 
       setProgress(90);
       const mergedPdfBytes = await mergedPdf.save();
-      const blob = new Blob([mergedPdfBytes.buffer as ArrayBuffer], {
-        type: 'application/pdf',
-      });
-      const url = URL.createObjectURL(blob);
+      const blob = new Blob([mergedPdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
 
-      if (isMobile) {
-        window.location.replace(url);
+      if (isMobile && (isAndroid || isIOS)) {
+        await openPDFMobile(blob);
+        setLoading(false);
         return;
       }
 
+      const url = URL.createObjectURL(blob);
       setPreviewUrl(url);
       setShowPreview(true);
       setLoading(false);
       setProgress(100);
+
     } catch (error) {
       console.error('Error merging PDFs:', error);
-      setStatus('เกิดข้อผิดพลาด');
+      setStatus('เกิดข้อผิดพลาดในการสร้าง PDF');
       setLoading(false);
     }
   };
@@ -431,24 +383,23 @@ export default function MultiPDFMergePage(queue_id: any) {
     if (previewUrl) {
       const a = document.createElement('a');
       a.href = previewUrl;
-      a.download = `Lab-Result-${printData?.customer?.ctm_fname || 'Unknown'}_${
-        printData?.customer?.ctm_lname || 'User'
-      }.pdf`;
+      a.download = `Lab-Result-${printData?.customer?.ctm_fname || 'Unknown'}_${printData?.customer?.ctm_lname || 'User'}.pdf`;
       a.click();
     }
   };
 
-  const previewJsPDFOnly = () => {
+  const previewJsPDFOnly = async () => {
     const doc = createJsPDF();
     const pdfBlob = doc.output('blob');
-    const url = URL.createObjectURL(pdfBlob);
+    
     if (previewUrl) URL.revokeObjectURL(previewUrl);
 
-    if (isMobile) {
-      window.location.replace(url);
+    if (isMobile && (isAndroid || isIOS)) {
+      await openPDFMobile(pdfBlob);
       return;
     }
 
+    const url = URL.createObjectURL(pdfBlob);
     setPreviewUrl(url);
     setShowPreview(true);
   };
@@ -457,13 +408,13 @@ export default function MultiPDFMergePage(queue_id: any) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center p-8">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-4.border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600 text-lg">{status}</p>
           {progress > 0 && (
             <div className="mt-4 w-64 mx-auto">
               <div className="bg-gray-200 rounded-full h-2">
                 <div
-                  className="bg-blue-600 h-2 rounded-full transition-all.duration-300"
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                   style={{ width: `${progress}%` }}
                 ></div>
               </div>
