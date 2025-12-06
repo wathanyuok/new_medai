@@ -508,7 +508,6 @@ export default function HealthReportsPage() {
                                                                             <div className="flex flex-col sm:flex-row gap-4">
                                                                                 <a
                                                                                     href={`print/${viewType}/${item.queue_id}?check_id=${sub_item.id}`}
-                                                                                    target="_blank"
                                                                                     className="text-sm text-[#4385EF] text-center px-4 py-3 rounded-3xl w-38 border border-[#4385EF] hover:bg-[#4385EF] hover:text-white transition-all duration-300"
                                                                                 >
                                                                                     ดูผลตรวจ
