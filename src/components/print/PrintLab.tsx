@@ -20,12 +20,6 @@ export default function MultiPDFMergePage(queue_id: any) {
   const [dataLoaded, setDataLoaded] = useState(false);
   const [autoProcessed, setAutoProcessed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [isIOS, setIsIOS] = useState(false);
-
-  const isIOSDevice = () => {
-    return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  };
 
   const isMobileDevice = () => {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -33,27 +27,7 @@ export default function MultiPDFMergePage(queue_id: any) {
 
   useEffect(() => {
     setIsMobile(isMobileDevice());
-    setIsIOS(isIOSDevice());
   }, []);
-
-  // ***** แก้ฝั่ง ANDROID — ถ้ากลับมาจาก PDF ให้ auto back ต่ออีก 1 step ทันที *****
-  useEffect(() => {
-    // เช็คจาก userAgent โดยตรง ไม่ใช้ state เพื่อกัน race
-    const ua = navigator.userAgent || '';
-    const isAndroid = /Android/i.test(ua);
-    if (!isAndroid) return;
-
-    const queueId = parseInt(queue_id.queue_id);
-    const storageKey = `labPdfBackAndroid-${queueId}`;
-    const shouldGoBack = sessionStorage.getItem(storageKey);
-
-    if (shouldGoBack === '1') {
-      // เคลียร์ flag แล้วเด้งกลับหน้าเดิม (หน้า ก่อน /ai/pr)
-      sessionStorage.removeItem(storageKey);
-      window.history.back();
-    }
-  }, [queue_id.queue_id]);
-  // ********************************************************************
 
   useEffect(() => {
     const queueId = parseInt(queue_id.queue_id);
@@ -127,7 +101,11 @@ export default function MultiPDFMergePage(queue_id: any) {
       if (!embeddedImage) throw new Error('Failed to embed image');
 
       const imgDims = embeddedImage.scale(1);
-      const scale = Math.min((A4_WIDTH - MARGIN * 2) / imgDims.width, (A4_HEIGHT - MARGIN * 2 - 30) / imgDims.height, 1);
+      const scale = Math.min(
+        (A4_WIDTH - MARGIN * 2) / imgDims.width,
+        (A4_HEIGHT - MARGIN * 2 - 30) / imgDims.height,
+        1
+      );
       const scaledW = imgDims.width * scale, scaledH = imgDims.height * scale;
       const x = (A4_WIDTH - scaledW) / 2, y = (A4_HEIGHT - scaledH) / 2;
 
@@ -196,19 +174,38 @@ export default function MultiPDFMergePage(queue_id: any) {
     currentY += spacer;
     doc.setFontSize(10);
     doc.setFont('TH-Niramit', 'normal');
-    doc.text(`${printData.shop.shop_address} แขวง${printData.shop.shop_district} เขต${printData.shop.shop_amphoe} ${printData.shop.shop_province} ${printData.shop.shop_zipcode}`, 40, currentY);
+    doc.text(
+      `${printData.shop.shop_address} แขวง${printData.shop.shop_district} เขต${printData.shop.shop_amphoe} ${printData.shop.shop_province} ${printData.shop.shop_zipcode}`,
+      40,
+      currentY
+    );
     currentY += spacer;
     doc.text(`${printData.shop.shop_phone}`, 40, currentY);
     currentY += spacer;
     doc.setFont('TH-Niramit', 'bold');
     doc.setFontSize(14);
-    doc.text(`Name : ${printData.customer.ctm_prefix == 'ไม่ระบุ' ? '' : printData.customer.ctm_prefix} ${printData.customer.ctm_fname} ${printData.customer.ctm_lname}`, 25, currentY);
+    doc.text(
+      `Name : ${printData.customer.ctm_prefix == 'ไม่ระบุ' ? '' : printData.customer.ctm_prefix} ${printData.customer.ctm_fname} ${printData.customer.ctm_lname}`,
+      25,
+      currentY
+    );
     doc.text(`Sex : ${printData.customer.ctm_gender}`, 120, currentY);
     doc.text(`Age : ${age}`, 150, currentY);
     currentY += spacer;
     doc.text(`HN : ${printData.customer.ctm_id}`, 25, currentY);
     doc.text(`Lab No. : ${printData.que_code}`, 75, currentY);
-    doc.text(`Request Date. : ${new Date(printData.que_datetime).toLocaleString('en-GB', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}`, 120, currentY);
+    doc.text(
+      `Request Date. : ${new Date(printData.que_datetime).toLocaleString('en-GB', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      })}`,
+      120,
+      currentY
+    );
 
     const printFooter = () => {
       const pageHeight = doc.internal.pageSize.getHeight();
@@ -220,8 +217,23 @@ export default function MultiPDFMergePage(queue_id: any) {
       doc.setFontSize(10);
       doc.text(`Reported by: ${printData.que_lab_analyst},${printData.que_lab_analyst_license}`, 10, pageHeight - 17);
       doc.text(`Authorized by: ${printData.que_lab_inspector},${printData.que_lab_inspector_license}`, 10, pageHeight - 14);
-      doc.text(`This report has been approved electronically. Infomation contained in this document is CONFIDENTIAL. Copyright: Issued by Bangkok Be Health`, 10, pageHeight - 11);
-      doc.text(`Print Date and Time: ${new Date().toLocaleString('en-GB', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}`, 120, pageHeight - 14);
+      doc.text(
+        `This report has been approved electronically. Infomation contained in this document is CONFIDENTIAL. Copyright: Issued by Bangkok Be Health`,
+        10,
+        pageHeight - 11
+      );
+      doc.text(
+        `Print Date and Time: ${new Date().toLocaleString('en-GB', {
+          day: '2-digit',
+          month: 'long',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        })}`,
+        120,
+        pageHeight - 14
+      );
     };
 
     printFooter();
@@ -260,19 +272,13 @@ export default function MultiPDFMergePage(queue_id: any) {
       if (s3Urls.length === 0) {
         const pdfBlob = jsPdfDoc.output('blob');
         const url = URL.createObjectURL(pdfBlob);
-        
+
         if (isMobile) {
-          if (isIOS) {
-            window.location.replace(url);
-          } else {
-            const queueId = parseInt(queue_id.queue_id);
-            const storageKey = `labPdfBackAndroid-${queueId}`;
-            sessionStorage.setItem(storageKey, '1');
-            window.location.href = url;
-          }
+          // สำคัญ: mobile ใช้ replace → history จะเป็น [หน้าเดิม, PDF] กด back ครั้งเดียว
+          window.location.replace(url);
           return;
         }
-        
+
         setPreviewUrl(url);
         setShowPreview(true);
         setLoading(false);
@@ -333,14 +339,7 @@ export default function MultiPDFMergePage(queue_id: any) {
       const url = URL.createObjectURL(blob);
 
       if (isMobile) {
-        if (isIOS) {
-          window.location.replace(url);
-        } else {
-          const queueId = parseInt(queue_id.queue_id);
-          const storageKey = `labPdfBackAndroid-${queueId}`;
-          sessionStorage.setItem(storageKey, '1');
-          window.location.href = url;
-        }
+        window.location.replace(url);
         return;
       }
 
@@ -370,19 +369,12 @@ export default function MultiPDFMergePage(queue_id: any) {
     const pdfBlob = doc.output('blob');
     const url = URL.createObjectURL(pdfBlob);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
-    
+
     if (isMobile) {
-      if (isIOS) {
-        window.location.replace(url);
-      } else {
-        const queueId = parseInt(queue_id.queue_id);
-        const storageKey = `labPdfBackAndroid-${queueId}`;
-        sessionStorage.setItem(storageKey, '1');
-        window.location.href = url;
-      }
+      window.location.replace(url);
       return;
     }
-    
+
     setPreviewUrl(url);
     setShowPreview(true);
   };
@@ -396,7 +388,7 @@ export default function MultiPDFMergePage(queue_id: any) {
           {progress > 0 && (
             <div className="mt-4 w-64 mx-auto">
               <div className="bg-gray-200 rounded-full h-2">
-                <div 
+                <div
                   className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                   style={{ width: `${progress}%` }}
                 ></div>
