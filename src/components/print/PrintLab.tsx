@@ -16,261 +16,263 @@ export default function MultiPDFMergePage(queue_id: any) {
   const [showPreview, setShowPreview] = useState(false);
   const [progress, setProgress] = useState(0);
   const [printData, setPrintData] = useState<any>({});
-  const [image, setImage] = useState("");
+  const [image, setImage] = useState('');
   const [dataLoaded, setDataLoaded] = useState(false);
   const [autoProcessed, setAutoProcessed] = useState(false);
-
-  // platform flags
+  const [isMobile, setIsMobile] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
 
-  const detectPlatform = () => {
-    const ua = navigator.userAgent || "";
-    setIsIOS(/iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
-    setIsAndroid(/Android/i.test(ua));
+  const detectDevices = () => {
+    const ua = navigator.userAgent || '';
+
+    return {
+      mobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua),
+      ios:
+        /iPad|iPhone|iPod/.test(ua) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1),
+      android: /Android/i.test(ua),
+    };
   };
 
   useEffect(() => {
-    detectPlatform();
+    const d = detectDevices();
+    setIsMobile(d.mobile);
+    setIsIOS(d.ios);
+    setIsAndroid(d.android);
   }, []);
 
   useEffect(() => {
     const queueId = parseInt(queue_id.queue_id);
-    const fetchQueue = async () => {
-      try {
-        setStatus('กำลังโหลดข้อมูล...');
-        const lab = await GetQueue(queueId);
-        setPrintData(lab);
 
-        const s3Array = lab.queue_file.map((file: any) => file.quef_path);
-        setS3Urls(s3Array);
+    const sessionKey = `lab-pdf-auto-${queueId}`;
+    const autoBack = sessionStorage.getItem(sessionKey);
+
+    if (isAndroid && autoBack === 'back') {
+      sessionStorage.removeItem(sessionKey);
+      window.history.back();
+    }
+  }, [isAndroid, queue_id.queue_id]);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const queueId = parseInt(queue_id.queue_id);
+        const data = await GetQueue(queueId);
+        setPrintData(data);
+
+        const s3 = data.queue_file.map((f: any) => f.quef_path);
+        setS3Urls(s3);
 
         setDataLoaded(true);
-        setStatus('กำลังสร้าง PDF...');
-      } catch (error) {
-        console.error('Error fetching queue:', error);
-        setStatus('เกิดข้อผิดพลาด');
+      } catch (e) {
+        console.error(e);
         setLoading(false);
       }
     };
 
-    fetchQueue();
+    load();
   }, []);
 
   useEffect(() => {
-    const auto = async () => {
-      if (dataLoaded && !autoProcessed && printData && Object.keys(printData).length > 0) {
-        setAutoProcessed(true);
-        await mergePDFs();
-      }
-    };
-
-    auto();
-  }, [dataLoaded, printData, autoProcessed]);
+    if (dataLoaded && !autoProcessed && printData && Object.keys(printData).length > 0) {
+      setAutoProcessed(true);
+      mergePDFs();
+    }
+  }, [dataLoaded, autoProcessed, printData]);
 
   const GetQueue = async (queue_id: number) => {
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem('token');
     const res = await axios.get(
-      `${process.env.NEXT_PUBLIC_API_URL || "https://shop.api-apsx.co/crm"}/queue/check/lab/${queue_id}`,
+      `${process.env.NEXT_PUBLIC_API_URL}/queue/check/lab/${queue_id}`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
 
-    const shop_image = await fetchS3Image("shop/S9d95a914-8929-4738-9693-81e133b8f03b.jpg");
-    setImage(shop_image!);
+    const img = await fetchS3Image('shop/S9d95a914-8929-4738-9693-81e133b8f03b.jpg');
+    setImage(img!);
+
     return res.data.data;
   };
 
-  const getFileType = (url: string): "pdf" | "image" | "unknown" => {
-    const ext = url.split(".").pop()?.toLowerCase();
-    if (ext === "pdf") return "pdf";
-    if (["jpg", "jpeg", "png", "gif", "bmp", "webp"].includes(ext || "")) return "image";
-    return "unknown";
+  const getFileType = (url: string) => {
+    const ext = url.split('.').pop()?.toLowerCase();
+    if (ext === 'pdf') return 'pdf';
+    if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext || '')) return 'image';
+    return 'unknown';
   };
 
-  const convertImageToPDF = async (imageUrl: string, fileName: string) => {
-    const { PDFDocument, rgb } = await import("pdf-lib");
+  const convertImageToPDF = async (url: string) => {
+    const { PDFDocument } = await import('pdf-lib');
+
     try {
-      const response = await fetch(imageUrl);
+      const res = await fetch(url);
+      const bytes = await res.arrayBuffer();
 
-      const imageBytes = await response.arrayBuffer();
-      const pdfDoc = await PDFDocument.create();
+      const pdf = await PDFDocument.create();
+      const ext = url.toLowerCase().split('.').pop();
+      const img =
+        ext === 'png'
+          ? await pdf.embedPng(bytes)
+          : await pdf.embedJpg(bytes);
 
-      const A4_WIDTH = 595.276;
-      const A4_HEIGHT = 841.89;
-      const MARGIN = 40;
+      const page = pdf.addPage([595.276, 841.89]);
 
-      let embeddedImage;
-      try {
-        embeddedImage = imageUrl.endsWith(".png")
-          ? await pdfDoc.embedPng(imageBytes)
-          : await pdfDoc.embedJpg(imageBytes);
-      } catch {
-        embeddedImage = await pdfDoc.embedJpg(imageBytes);
-      }
-
-      const imgDims = embeddedImage.scale(1);
+      const dims = img.scale(1);
       const scale = Math.min(
-        (A4_WIDTH - MARGIN * 2) / imgDims.width,
-        (A4_HEIGHT - MARGIN * 2) / imgDims.height,
-        1
+        520 / dims.width,
+        760 / dims.height,
       );
 
-      const page = pdfDoc.addPage([A4_WIDTH, A4_HEIGHT]);
-      page.drawImage(embeddedImage, {
-        x: (A4_WIDTH - imgDims.width * scale) / 2,
-        y: (A4_HEIGHT - imgDims.height * scale) / 2,
-        width: imgDims.width * scale,
-        height: imgDims.height * scale,
+      page.drawImage(img, {
+        x: (595.276 - dims.width * scale) / 2,
+        y: (841.89 - dims.height * scale) / 2,
+        width: dims.width * scale,
+        height: dims.height * scale,
       });
 
-      return pdfDoc;
-    } catch (error) {
-      const { PDFDocument, rgb } = await import("pdf-lib");
-      const doc = await PDFDocument.create();
-      const page = doc.addPage([595.276, 841.89]);
-      page.drawText(`Error loading image ${fileName}`, { x: 50, y: 500 });
-      return doc;
+      return pdf;
+    } catch {
+      const pdf = await PDFDocument.create();
+      pdf.addPage();
+      return pdf;
     }
   };
 
   const createJsPDF = () => {
-    const doc = new jsPDF({
-      orientation: "portrait",
-      unit: "mm",
-      format: "a4",
-    });
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
-    doc.addFileToVFS("TH-Niramit-AS-normal.ttf", font.data);
-    doc.addFileToVFS("TH-Niramit-AS-Bold-bold.ttf", fontBold.data);
-    doc.addFont("TH-Niramit-AS-normal.ttf", "TH-Niramit", "normal");
-    doc.addFont("TH-Niramit-AS-Bold-bold.ttf", "TH-Niramit", "bold");
+    doc.addFileToVFS('TH-Niramit.ttf', font.data);
+    doc.addFileToVFS('TH-Niramit-Bold.ttf', fontBold.data);
+    doc.addFont('TH-Niramit.ttf', 'TH-Niramit', 'normal');
+    doc.addFont('TH-Niramit-Bold.ttf', 'TH-Niramit', 'bold');
 
-    doc.setFont("TH-Niramit", "bold");
+    doc.setFont('TH-Niramit', 'bold');
 
-    const rows = printData.checks.map((item: any, i: number) => [
-      [`${i + 1}.) ${item.chk_name}`],
-      [item.specimen_name_en || "-"],
-      [item.chk_method || "-"],
-      [item.chk_type_id === 3 ? item.fetchedImageValue || "-" : item.chk_value || "-"],
-      [item.chk_flag || "-"],
-      [item.chk_unit || "-"],
-      [item.chk_direction_detail || "-"],
-      [item.chk_old || "-"],
-    ]);
+    let y = 10;
 
-    let Y = 20;
+    doc.addImage(image, 'JPEG', 10, y, 25, 25);
+    doc.text(printData.shop.shop_name, 50, y + 5);
 
-    doc.addImage(String(image), "JPEG", 10, 10, 25, 25);
-    doc.text(printData.shop.shop_name, 40, 20);
-
-    autoTable(doc, {
-      startY: 40,
-      head: [["TEST", "SPECIMEN", "METHOD", "RESULT", "FLAG", "UNIT", "REF", "PREVIOUS"]],
-      body: rows,
-    });
+    doc.setFontSize(22);
+    doc.text('LABORATORY REPORT', 200, y + 5, { align: 'right' });
 
     return doc;
   };
 
   const mergePDFs = async () => {
     try {
-      const { PDFDocument, rgb } = await import("pdf-lib");
+      const { PDFDocument } = await import('pdf-lib');
 
-      const jsDoc = createJsPDF();
-      const jsPdfBytes = jsDoc.output("arraybuffer");
+      const baseDoc = createJsPDF();
+      const baseBytes = baseDoc.output('arraybuffer');
 
-      setProgress(10);
+      const merged = await PDFDocument.create();
 
-      const mergedPdf = await PDFDocument.create();
-      const A4_WIDTH = 595.276;
-      const A4_HEIGHT = 841.89;
+      const A4 = [595.276, 841.89];
 
-      const convertPage = async (pg: any) => {
-        const p = mergedPdf.addPage([A4_WIDTH, A4_HEIGHT]);
-        const embed = await mergedPdf.embedPage(pg);
-        const scale = Math.min(A4_WIDTH / embed.width, A4_HEIGHT / embed.height);
-        p.drawPage(embed, { x: 0, y: 0, width: embed.width * scale, height: embed.height * scale });
+      const embedPage = async (srcPage: any) => {
+        const pg = merged.addPage(A4);
+        const embed = await merged.embedPage(srcPage);
+
+        const { width, height } = embed;
+        const scale = Math.min(A4[0] / width, A4[1] / height);
+
+        pg.drawPage(embed, {
+          x: (A4[0] - width * scale) / 2,
+          y: (A4[1] - height * scale) / 2,
+          width: width * scale,
+          height: height * scale,
+        });
       };
 
-      // add main jsPDF pages
-      const jsPdfDoc = await PDFDocument.load(jsPdfBytes);
-      for (let i = 0; i < jsPdfDoc.getPageCount(); i++) {
-        await convertPage(jsPdfDoc.getPage(i));
-      }
+      const pdf1 = await PDFDocument.load(baseBytes);
+      for (let p of pdf1.getPages()) await embedPage(p);
 
-      setProgress(30);
-
-      // merge S3 files
-      for (let i = 0; i < s3Urls.length; i++) {
-        const url = s3Urls[i];
+      for (const url of s3Urls) {
         const type = getFileType(url);
 
-        if (type === "pdf") {
-          const bytes = await (await fetch(url)).arrayBuffer();
+        if (type === 'pdf') {
+          const res = await fetch(url);
+          const bytes = await res.arrayBuffer();
+
           const pdf = await PDFDocument.load(bytes);
-          for (let j = 0; j < pdf.getPageCount(); j++) {
-            await convertPage(pdf.getPage(j));
-          }
-        } else if (type === "image") {
-          const imgPdf = await convertImageToPDF(url, url.split("/").pop() || "image");
-          for (let j = 0; j < imgPdf.getPageCount(); j++) {
-            await convertPage(imgPdf.getPage(j));
-          }
+          for (let p of pdf.getPages()) await embedPage(p);
+
+        } else if (type === 'image') {
+          const imgPdf = await convertImageToPDF(url);
+          for (let p of imgPdf.getPages()) await embedPage(p);
         }
       }
 
-      setProgress(90);
+      const finalBytes = await merged.save();
 
-      const finalBytes = await mergedPdf.save();
-      const blob = new Blob([finalBytes], { type: "application/pdf" });
+      const arrayBuffer = finalBytes.buffer.slice(0);
+      const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
 
-      // -------- iOS: FULLSCREEN PDF via redirect  ---------
-      if (isIOS) {
-        window.location.href = url;
+      if (isMobile && isIOS) {
+        window.location.replace(url);
         return;
       }
 
-      // -------- Android: SHOW IN IFRAME (fix back button) ---------
-      if (isAndroid) {
+      if (isMobile && isAndroid) {
+        // Android → เปิดใน iframe
+        // เพื่อไม่ให้กด back 2 ครั้ง
         setPreviewUrl(url);
         setShowPreview(true);
         setLoading(false);
+
+        const key = `lab-pdf-auto-${queue_id.queue_id}`;
+        sessionStorage.setItem(key, 'back');
+
         return;
       }
 
-      // Desktop default: preview
+      // Desktop + others
       setPreviewUrl(url);
       setShowPreview(true);
       setLoading(false);
+
     } catch (err) {
       console.error(err);
-      setStatus("เกิดข้อผิดพลาด");
+      setStatus('เกิดข้อผิดพลาด');
       setLoading(false);
     }
   };
 
+  const downloadPDF = () => {
+    if (!previewUrl) return;
+    const a = document.createElement('a');
+    a.href = previewUrl;
+    a.download = 'Lab-Result.pdf';
+    a.click();
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div>
-          <div className="animate-spin h-16 w-16 border-b-4 border-blue-600 mx-auto"></div>
-          <p className="text-center mt-4">{status}</p>
-          <p className="text-center text-sm text-gray-500">{progress}%</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center text-xl">
+        {status}...
       </div>
     );
   }
 
   return (
-    <div className="p-6">
+    <div className="p-5">
       {showPreview && previewUrl && (
-        <div className="bg-white rounded shadow p-4">
-          <h2 className="text-lg font-bold mb-3">PDF Preview</h2>
-          <iframe
-            src={`${previewUrl}#toolbar=1&zoom=page-fit`}
-            className="w-full h-[800px] border"
-          />
+        <div>
+          <button
+            className="px-4 py-2 bg-blue-600 text-white rounded"
+            onClick={downloadPDF}
+          >
+            ดาวน์โหลด PDF
+          </button>
+
+          <div className="mt-5 border h-[90vh]">
+            <iframe
+              src={previewUrl}
+              className="w-full h-full"
+            />
+          </div>
         </div>
       )}
     </div>
