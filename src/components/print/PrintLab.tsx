@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
-import { autoTable } from 'jspdf-autotable'
-import axios from 'axios'
-import font from '@/font/font.json'
-import fontBold from '@/font/fontBold.json'
+import { autoTable } from 'jspdf-autotable';
+import axios from 'axios';
+import font from '@/font/font.json';
+import fontBold from '@/font/fontBold.json';
 import { fetchS3Image } from '@/utils/getS3file';
 
 export default function MultiPDFMergePage(queue_id: any) {
@@ -17,26 +17,26 @@ export default function MultiPDFMergePage(queue_id: any) {
   const [currentStep, setCurrentStep] = useState('');
   const [progress, setProgress] = useState(0);
   const [printData, setPrintData] = useState<any>({});
-  const [image, setImage] = useState("");
+  const [image, setImage] = useState('');
   const [dataLoaded, setDataLoaded] = useState(false);
   const [autoProcessed, setAutoProcessed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
-  
-  // Ref สำหรับเก็บ window ที่เปิดไว้ก่อน (สำหรับ iOS) — ตอนนี้ไม่ได้ใช้ก็ไม่เป็นไร
-  const preOpenedWindowRef = useRef<Window | null>(null);
 
-  // ตรวจจับ iOS
   const isIOSDevice = () => {
-    return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    return (
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    );
   };
 
   const isMobileDevice = () => {
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      navigator.userAgent
+    );
   };
 
-  // Cleanup function เมื่อ component unmount
+  // cleanup previewUrl
   useEffect(() => {
     return () => {
       if (previewUrl) {
@@ -52,19 +52,17 @@ export default function MultiPDFMergePage(queue_id: any) {
 
   useEffect(() => {
     const queueId = parseInt(queue_id.queue_id);
-    console.log(queue_id)
     const fetchQueue = async () => {
       try {
         setStatus('กำลังโหลดข้อมูล...');
         setCurrentStep('กำลังดึงข้อมูลจากฐานข้อมูล...');
 
         const lab = await GetQueue(queueId);
-        setPrintData(lab)
+        setPrintData(lab);
         const s3Array = lab.queue_file.map((file: any) => file.quef_path);
         setS3Urls(s3Array);
         setDataLoaded(true);
 
-        console.log('S3 URLs loaded:', s3Array);
         setStatus('โหลดข้อมูลเสร็จสิ้น กำลังเตรียมสร้าง PDF...');
         setCurrentStep('');
       } catch (error) {
@@ -84,11 +82,9 @@ export default function MultiPDFMergePage(queue_id: any) {
         setAutoProcessed(true);
         setStatus('เริ่มสร้าง PDF อัตโนมัติ...');
 
-        // Wait a moment for UI to update
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
 
-        // Android ใช้โค้ดนี้อยู่แล้ว
-        // iOS เวอร์ชันจริงคุณแยกไฟล์ / แยกหน้าอยู่แล้ว ไม่เกี่ยวตัวนี้
+        // iOS: ใช้ behavior เดิม (replace) → ให้ mergePDFs(true) แล้วไปจัดการในนั้น
         await mergePDFs(true);
       }
     };
@@ -97,30 +93,33 @@ export default function MultiPDFMergePage(queue_id: any) {
   }, [dataLoaded, printData, autoProcessed, isIOS]);
 
   const GetQueue = async (queue_id: number) => {
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem('token');
     try {
       const res = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL || 'https://shop.api-apsx.co/crm'}/queue/check/lab/${queue_id}`,
+        `${
+          process.env.NEXT_PUBLIC_API_URL || 'https://shop.api-apsx.co/crm'
+        }/queue/check/lab/${queue_id}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         }
       );
-      const presignImg = res.data.data.shop.shop_image
-      const parts = presignImg.split(".com/");
+      const presignImg = res.data.data.shop.shop_image;
+      const parts = presignImg.split('.com/');
       const filename = parts.pop();
-      const shop_image = await fetchS3Image('shop/S9d95a914-8929-4738-9693-81e133b8f03b.jpg')
-      setImage(shop_image!)
+      const shop_image = await fetchS3Image(
+        'shop/S9d95a914-8929-4738-9693-81e133b8f03b.jpg'
+      );
+      setImage(shop_image!);
 
       return res.data.data;
     } catch (error) {
-      console.error("Error fetching lab result", error);
+      console.error('Error fetching lab result', error);
       return null;
     }
-  }
+  };
 
-  // ฟังก์ชันตรวจสอบประเภทไฟล์
   const getFileType = (url: string): 'pdf' | 'image' | 'unknown' => {
     const extension = url.split('.').pop()?.toLowerCase();
 
@@ -133,20 +132,16 @@ export default function MultiPDFMergePage(queue_id: any) {
     }
   };
 
-  // ฟังก์ชันแปลงรูปภาพเป็น PDF
   const convertImageToPDF = async (imageUrl: string, fileName: string) => {
     const { PDFDocument, rgb } = await import('pdf-lib');
 
     try {
-      console.log(`Converting image: ${fileName}`);
       const response = await fetch(imageUrl);
       if (!response.ok) {
         throw new Error(`Failed to fetch image: ${response.status}`);
       }
 
       const imageBytes = await response.arrayBuffer();
-      console.log(`Image loaded, size: ${imageBytes.byteLength} bytes`);
-
       const pdfDoc = await PDFDocument.create();
       const A4_WIDTH = 595.276;
       const A4_HEIGHT = 841.89;
@@ -154,70 +149,47 @@ export default function MultiPDFMergePage(queue_id: any) {
 
       let embeddedImage;
 
-      // Determine image type from URL extension
       const extension = imageUrl.toLowerCase().split('.').pop();
-      console.log(`Image extension: ${extension}`);
 
       try {
         if (extension === 'png') {
-          console.log('Embedding as PNG...');
           embeddedImage = await pdfDoc.embedPng(imageBytes);
         } else if (['jpg', 'jpeg'].includes(extension || '')) {
-          console.log('Embedding as JPEG...');
           embeddedImage = await pdfDoc.embedJpg(imageBytes);
         } else {
-          // Default to JPEG for other formats
-          console.log('Defaulting to JPEG embedding...');
           embeddedImage = await pdfDoc.embedJpg(imageBytes);
         }
-      } catch (embedError) {
-        console.warn(`Failed to embed as ${extension}, trying alternative format:`, embedError);
-
-        // Try the other format if the first one fails
+      } catch {
         if (extension === 'png') {
-          console.log('Retrying as JPEG...');
           embeddedImage = await pdfDoc.embedJpg(imageBytes);
         } else {
-          console.log('Retrying as PNG...');
           embeddedImage = await pdfDoc.embedPng(imageBytes);
         }
       }
 
       if (!embeddedImage) {
-        throw new Error('Failed to embed image in both PNG and JPEG formats');
+        throw new Error('Failed to embed image');
       }
 
-      console.log('Image embedded successfully');
-
-      // Get original image dimensions
       const imgDims = embeddedImage.scale(1);
       const imgWidth = imgDims.width;
       const imgHeight = imgDims.height;
 
-      console.log(`Original image dimensions: ${imgWidth} x ${imgHeight}`);
-
-      // Calculate scaling to fit A4 with margins
-      const availableWidth = A4_WIDTH - (MARGIN * 2);
-      const availableHeight = A4_HEIGHT - (MARGIN * 2) - 30; // Extra margin for text
+      const availableWidth = A4_WIDTH - MARGIN * 2;
+      const availableHeight = A4_HEIGHT - MARGIN * 2 - 30;
 
       const scaleX = availableWidth / imgWidth;
       const scaleY = availableHeight / imgHeight;
-      const scale = Math.min(scaleX, scaleY, 1); // Don't scale up
+      const scale = Math.min(scaleX, scaleY, 1);
 
       const scaledWidth = imgWidth * scale;
       const scaledHeight = imgHeight * scale;
 
-      console.log(`Scaled dimensions: ${scaledWidth} x ${scaledHeight}, scale: ${scale}`);
-
-      // Center the image on the page
       const x = (A4_WIDTH - scaledWidth) / 2;
       const y = (A4_HEIGHT - scaledHeight) / 2;
 
-      console.log(`Image position: x=${x}, y=${y}`);
-
       const page = pdfDoc.addPage([A4_WIDTH, A4_HEIGHT]);
 
-      // Draw white background
       page.drawRectangle({
         x: 0,
         y: 0,
@@ -226,7 +198,6 @@ export default function MultiPDFMergePage(queue_id: any) {
         color: rgb(1, 1, 1),
       });
 
-      // Draw the image
       page.drawImage(embeddedImage, {
         x,
         y,
@@ -234,9 +205,6 @@ export default function MultiPDFMergePage(queue_id: any) {
         height: scaledHeight,
       });
 
-      console.log('Image drawn on page');
-
-      // Add file info at the top
       page.drawText(`${fileName} (Image converted to PDF)`, {
         x: 10,
         y: A4_HEIGHT - 15,
@@ -244,26 +212,26 @@ export default function MultiPDFMergePage(queue_id: any) {
         color: rgb(0.5, 0.5, 0.5),
       });
 
-      // Add image info at the bottom
-      page.drawText(`Original: ${Math.round(imgWidth)} x ${Math.round(imgHeight)} | Scale: ${Math.round(scale * 100)}%`, {
-        x: 10,
-        y: 15,
-        size: 8,
-        color: rgb(0.5, 0.5, 0.5),
-      });
+      page.drawText(
+        `Original: ${Math.round(imgWidth)} x ${Math.round(
+          imgHeight
+        )} | Scale: ${Math.round(scale * 100)}%`,
+        {
+          x: 10,
+          y: 15,
+          size: 8,
+          color: rgb(0.5, 0.5, 0.5),
+        }
+      );
 
-      console.log(`Successfully converted image ${fileName} to PDF`);
       return pdfDoc;
-
     } catch (error) {
       console.error(`Error converting image ${fileName}:`, error);
 
-      // Create error page
       const { PDFDocument, rgb } = await import('pdf-lib');
       const errorDoc = await PDFDocument.create();
       const page = errorDoc.addPage([595.276, 841.89]);
 
-      // White background
       page.drawRectangle({
         x: 0,
         y: 0,
@@ -279,83 +247,129 @@ export default function MultiPDFMergePage(queue_id: any) {
         color: rgb(0.8, 0, 0),
       });
 
-      page.drawText(`URL: ${imageUrl.substring(0, 60)}${imageUrl.length > 60 ? '...' : ''}`, {
-        x: 50,
-        y: 370,
-        size: 10,
-        color: rgb(0.5, 0.5, 0.5),
-      });
+      page.drawText(
+        `URL: ${imageUrl.substring(0, 60)}${imageUrl.length > 60 ? '...' : ''}`,
+        {
+          x: 50,
+          y: 370,
+          size: 10,
+          color: rgb(0.5, 0.5, 0.5),
+        }
+      );
 
-      page.drawText(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`, {
-        x: 50,
-        y: 340,
-        size: 10,
-        color: rgb(0.8, 0, 0),
-      });
+      page.drawText(
+        `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        {
+          x: 50,
+          y: 340,
+          size: 10,
+          color: rgb(0.8, 0, 0),
+        }
+      );
 
       return errorDoc;
     }
   };
 
-  // ฟังก์ชันสร้าง PDF ด้วย jsPDF (A4 size)
   const createJsPDF = () => {
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
-      format: 'a4'
+      format: 'a4',
     });
-    doc.addFileToVFS('TH-Niramit-AS-normal.ttf', font.data)
-    doc.addFileToVFS('TH-Niramit-AS-Bold-bold.ttf', fontBold.data)
-    doc.addFont('TH-Niramit-AS-normal.ttf', 'TH-Niramit', 'normal')
-    doc.addFont('TH-Niramit-AS-Bold-bold.ttf', 'TH-Niramit', 'bold')
-    doc.setFont('TH-Niramit', 'bold')
 
-    console.log(printData.checks)
-    let mappedArray = printData.checks.map((check: any) => ({
+    doc.addFileToVFS('TH-Niramit-AS-normal.ttf', font.data);
+    doc.addFileToVFS('TH-Niramit-AS-Bold-bold.ttf', fontBold.data);
+    doc.addFont('TH-Niramit-AS-normal.ttf', 'TH-Niramit', 'normal');
+    doc.addFont('TH-Niramit-AS-Bold-bold.ttf', 'TH-Niramit', 'bold');
+    doc.setFont('TH-Niramit', 'bold');
+
+    const mappedArray = printData.checks.map((check: any) => ({
       id: check.id,
       checking_code: check.chk_code,
       specimen_name_en: check.specimen_name_en,
       checking_name: check.chk_name,
-      chk_value: check.chk_type_id == 3 ? check.fetchedImageValue || '-' : check.chk_value || '-',
+      chk_value:
+        check.chk_type_id == 3 ? check.fetchedImageValue || '-' : check.chk_value || '-',
       chk_direction_detail: check.chk_direction_detail || '-',
       chk_flag: check.chk_flag || '-',
       chk_old: check.chk_old || '-',
       chk_unit: check.chk_unit || '-',
       chk_type_id: check.chk_type_id || null,
       chk_method: check.chk_method || null,
-      subs: null
+      subs: null,
     }));
 
-    console.log(mappedArray)
     const rows: any[] = [];
     mappedArray.forEach((item: any, index: number) => {
       rows.push([
         [`${index + 1}.) ${item.checking_name}`],
-        [(item.specimen_name_en || '-')],
-        [(item.chk_method || '-')],
-        [(item.chk_value || '-')],
+        [item.specimen_name_en || '-'],
+        [item.chk_method || '-'],
+        [item.chk_value || '-'],
         [item.chk_flag],
         [item.chk_unit],
         [item.chk_direction_detail],
-        [item.chk_old]
-      ],)
-    })
+        [item.chk_old],
+      ]);
+    });
 
-    let totalPage = 5
-    const spacer = 6
-    const font_header = 16
-    const font_body = 14
+    let currentY = 5;
+    const spacer = 6;
+    const font_header = 16;
+    const font_body = 14;
+
+    const printFooter = (doc: jsPDF) => {
+      const pageHeight = doc.internal.pageSize.getHeight();
+      doc.setDrawColor('#DDDAD0');
+      doc.setTextColor('#7A7A73');
+      doc.setLineWidth(0.5);
+      doc.line(5, pageHeight - 21, doc.internal.pageSize.getWidth() - 5, pageHeight - 21);
+      doc.line(5, pageHeight - 9, doc.internal.pageSize.getWidth() - 5, pageHeight - 9);
+      doc.setFontSize(10);
+      doc.text(
+        `Reported by: ${printData.que_lab_analyst},${printData.que_lab_analyst_license}`,
+        10,
+        pageHeight - 17
+      );
+      doc.text(
+        `Authorized by: ${printData.que_lab_inspector},${printData.que_lab_inspector_license}`,
+        10,
+        pageHeight - 14
+      );
+      doc.text(
+        `This report has been approved electronically. Infomation contained in this document is CONFIDENTIAL. Copyright: Issued by Bangkok Be Health`,
+        10,
+        pageHeight - 11
+      );
+      doc.text(
+        `Print Date and Time: ${new Date().toLocaleString('en-GB', {
+          day: '2-digit',
+          month: 'long',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        })}`,
+        120,
+        pageHeight - 14
+      );
+    };
 
     const printHeader = (doc: jsPDF, currentY: number) => {
-      const birthDate = new Date(printData.customer.ctm_birthdate)
-      const today = new Date()
+      const birthDate = new Date(printData.customer.ctm_birthdate);
+      const today = new Date();
       let years = today.getFullYear() - birthDate.getFullYear();
       let months = today.getMonth() - birthDate.getMonth();
       let days = today.getDate() - birthDate.getDate();
 
       if (days < 0) {
         months--;
-        const previousMonth = new Date(today.getFullYear(), today.getMonth(), 0).getDate();
+        const previousMonth = new Date(
+          today.getFullYear(),
+          today.getMonth(),
+          0
+        ).getDate();
         days = previousMonth + days;
       }
 
@@ -367,38 +381,57 @@ export default function MultiPDFMergePage(queue_id: any) {
       const age = `${years} ปี ${months} เดือน ${days} วัน`;
 
       doc.setFontSize(font_header);
-      doc.addImage(String(image), 'JPEG', 10, 5, 23, 23)
-      currentY += 8
-      doc.text(printData.shop.shop_name, 40, currentY)
+      doc.addImage(String(image), 'JPEG', 10, 5, 23, 23);
+      currentY += 8;
+      doc.text(printData.shop.shop_name, 40, currentY);
       doc.setFontSize(25);
-      doc.text('LABORATORY REPORT', 205, currentY, { align: 'right' })
-      currentY += spacer
+      doc.text('LABORATORY REPORT', 205, currentY, { align: 'right' });
+      currentY += spacer;
       doc.setFontSize(10);
-      doc.setFont('TH-Niramit', 'normal')
-      doc.text(`${printData.shop.shop_address} แขวง${printData.shop.shop_district} เขต${printData.shop.shop_amphoe} ${printData.shop.shop_province} ${printData.shop.shop_zipcode}`, 40, currentY)
-      currentY += spacer
-      doc.text(`${printData.shop.shop_phone}`, 40, currentY)
-      currentY += spacer
-      doc.setFont('TH-Niramit', 'bold')
+      doc.setFont('TH-Niramit', 'normal');
+      doc.text(
+        `${printData.shop.shop_address} แขวง${printData.shop.shop_district} เขต${printData.shop.shop_amphoe} ${printData.shop.shop_province} ${printData.shop.shop_zipcode}`,
+        40,
+        currentY
+      );
+      currentY += spacer;
+      doc.text(`${printData.shop.shop_phone}`, 40, currentY);
+      currentY += spacer;
+      doc.setFont('TH-Niramit', 'bold');
       doc.setFontSize(font_body);
-      doc.text(`Name : ${printData.customer.ctm_prefix == 'ไม่ระบุ' ? '' : printData.customer.ctm_prefix} ${printData.customer.ctm_fname} ${printData.customer.ctm_lname}`, 25, currentY)
-      doc.text(`Sex : ${printData.customer.ctm_gender}`, 120, currentY)
-      doc.text(`Age : ${age}`, 150, currentY)
-      currentY += spacer
-      doc.text(`HN : ${printData.customer.ctm_id}`, 25, currentY)
-      doc.text(`Lab No. : ${printData.que_code}`, 75, currentY)
-      doc.text(`Request Date. : ${new Date(printData.que_datetime).toLocaleString('en-GB', {
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      })}`, 120, currentY)
+      doc.text(
+        `Name : ${
+          printData.customer.ctm_prefix == 'ไม่ระบุ'
+            ? ''
+            : printData.customer.ctm_prefix
+        } ${printData.customer.ctm_fname} ${printData.customer.ctm_lname}`,
+        25,
+        currentY
+      );
+      doc.text(`Sex : ${printData.customer.ctm_gender}`, 120, currentY);
+      doc.text(`Age : ${age}`, 150, currentY);
+      currentY += spacer;
+      doc.text(`HN : ${printData.customer.ctm_id}`, 25, currentY);
+      doc.text(`Lab No. : ${printData.que_code}`, 75, currentY);
+      doc.text(
+        `Request Date. : ${new Date(printData.que_datetime).toLocaleString(
+          'en-GB',
+          {
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+          }
+        )}`,
+        120,
+        currentY
+      );
 
-      printFooter(doc)
-      return currentY
-    }
+      printFooter(doc);
+      return currentY;
+    };
 
     const printTable = (doc: jsPDF, currentY: number) => {
       autoTable(doc, {
@@ -406,15 +439,15 @@ export default function MultiPDFMergePage(queue_id: any) {
         theme: 'striped',
         margin: { left: 5, right: 5, top: 72, bottom: 35 },
         styles: {
-          font: "TH-Niramit",
+          font: 'TH-Niramit',
           fontSize: 13,
-          fontStyle: "bold",
-          textColor: "black",
+          fontStyle: 'bold',
+          textColor: 'black',
         },
         headStyles: {
           fillColor: [255, 255, 255],
-          textColor: "black",
-          fontStyle: "bold",
+          textColor: 'black',
+          fontStyle: 'bold',
           halign: 'center',
           valign: 'middle',
           lineWidth: 0,
@@ -429,61 +462,33 @@ export default function MultiPDFMergePage(queue_id: any) {
           6: { halign: 'center', cellWidth: 35, fontSize: 10, valign: 'middle' },
           7: { halign: 'center', cellWidth: 40, fontSize: 10, valign: 'middle' },
         },
-        head: [['TEST NAME', 'SPECIMEN', 'METHOD', 'RESULT', 'FLAG', 'UNIT', 'REFERENCE RANGE', 'PREVIOUS RESULT']],
+        head: [
+          [
+            'TEST NAME',
+            'SPECIMEN',
+            'METHOD',
+            'RESULT',
+            'FLAG',
+            'UNIT',
+            'REFERENCE RANGE',
+            'PREVIOUS RESULT',
+          ],
+        ],
         body: rows,
-      })
-      return currentY
-    }
+      });
+      return currentY;
+    };
 
-    const printFooter = (doc: jsPDF) => {
-      const pageHeight = doc.internal.pageSize.getHeight()
-
-
-      doc.setDrawColor("#DDDAD0");
-      doc.setTextColor("#7A7A73")
-      doc.setLineWidth(0.5)
-      doc.line(5, pageHeight - 21, doc.internal.pageSize.getWidth() - 5, pageHeight - 21)
-      doc.line(5, pageHeight - 9, doc.internal.pageSize.getWidth() - 5, pageHeight - 9)
-      doc.setFontSize(10)
-      doc.text(`Reported by: ${printData.que_lab_analyst},${printData.que_lab_analyst_license}`, 10, pageHeight - 17)
-      doc.text(`Authorized by: ${printData.que_lab_inspector},${printData.que_lab_inspector_license}`, 10, pageHeight - 14)
-      doc.text(`This report has been approved electronically. Infomation contained in this document is CONFIDENTIAL. Copyright: Issued by Bangkok Be Health`, 10, pageHeight - 11)
-      doc.text(`Print Date and Time: ${new Date().toLocaleString('en-GB', {
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      })}`, 120, pageHeight - 14)
-    }
-
-    totalPage = printHeader(doc, totalPage)
-    totalPage += spacer
-    totalPage = printTable(doc, totalPage)
+    currentY = printHeader(doc, currentY);
+    currentY += spacer;
+    printTable(doc, currentY);
 
     doc.setFontSize(16);
     return doc;
   };
 
-  // ฟังก์ชันแปลงข้อความเป็น array ของ URLs
-  const parseUrlsFromText = (urlsText: string): string[] => {
-    return urlsText
-      .split('\n')
-      .map(url => url.trim())
-      .filter(url => url.length > 0 && url.startsWith('http'));
-  };
-
-  // ฟังก์ชันจัดการการเปลี่ยนแปลงใน textarea
-  const handleUrlsChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const urlsText = e.target.value;
-    const urlsArray = parseUrlsFromText(urlsText);
-    setS3Urls(urlsArray);
-    setAutoProcessed(false); // Reset auto processed flag when URLs change
-  };
-
-  // ฟังก์ชันเปิด PDF บน iOS อย่างปลอดภัย (ต้องเรียกจาก user action โดยตรง)
   const openPDFOnIOS = (url: string) => {
+    // จริง ๆ พอเราใช้ location.replace แล้ว ฟังก์ชันนี้จะไม่ค่อยได้ใช้
     const link = document.createElement('a');
     link.href = url;
     link.target = '_blank';
@@ -493,45 +498,45 @@ export default function MultiPDFMergePage(queue_id: any) {
     document.body.removeChild(link);
   };
 
-  // ฟังก์ชันรวม PDF และ Image จากหลายลิงค์
   const mergePDFs = async (shouldAutoOpen: boolean = true) => {
     if (s3Urls.length === 0) {
-      // If no S3 files, just generate and display the jsPDF
       const jsPdfDoc = createJsPDF();
       const pdfBlob = jsPdfDoc.output('blob');
       const url = URL.createObjectURL(pdfBlob);
 
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(url);
+
+      // --- แยก behavior ---
+      if (isMobile) {
+        if (isIOS) {
+          // iOS ใช้ code เดิม → replace ไปหน้า PDF เลย
+          window.location.replace(url);
+          return;
+        } else if (shouldAutoOpen) {
+          // Android → เปิด tab ใหม่ แบบ code ใหม่
+          window.open(url, '_blank');
+          return;
+        }
       }
 
-      setPreviewUrl(url);
-      
-      if (isMobile && shouldAutoOpen) {
-        if (isIOS) {
-          // อันนี้ถ้าเอาไปใช้ iOS ด้วยก็จะเปิดแท็บใหม่
-          openPDFOnIOS(url);
-        } else {
-          window.open(url, '_blank');
-        }
-        return;
-      }
-      
       setShowPreview(true);
       setStatus('สร้าง Lab Report PDF เสร็จสมบูรณ์');
       return;
     }
 
-    // นับจำนวนไฟล์แต่ละประเภท
-    const fileTypes = s3Urls.map(url => ({ url, type: getFileType(url) }));
-    const pdfCount = fileTypes.filter(f => f.type === 'pdf').length;
-    const imageCount = fileTypes.filter(f => f.type === 'image').length;
-    const unknownCount = fileTypes.filter(f => f.type === 'unknown').length;
+    const fileTypesData = s3Urls.map((url) => ({ url, type: getFileType(url) }));
+    const pdfCount = fileTypesData.filter((f) => f.type === 'pdf').length;
+    const imageCount = fileTypesData.filter((f) => f.type === 'image').length;
+    const unknownCount = fileTypesData.filter((f) => f.type === 'unknown').length;
 
-    console.log('File analysis:', { pdfCount, imageCount, unknownCount, fileTypes });
     setLoading(true);
     setProgress(0);
-    setStatus(`พบไฟล์ ${s3Urls.length} ไฟล์ (PDF: ${pdfCount}, รูปภาพ: ${imageCount}${unknownCount > 0 ? `, ไม่ทราบประเภท: ${unknownCount}` : ''}) - เริ่มประมวลผล...`);
+    setStatus(
+      `พบไฟล์ ${s3Urls.length} ไฟล์ (PDF: ${pdfCount}, รูปภาพ: ${imageCount}${
+        unknownCount > 0 ? `, ไม่ทราบประเภท: ${unknownCount}` : ''
+      }) - เริ่มประมวลผล...`
+    );
 
     try {
       const { PDFDocument, rgb } = await import('pdf-lib');
@@ -546,7 +551,12 @@ export default function MultiPDFMergePage(queue_id: any) {
       const A4_HEIGHT = 841.89;
       const MARGIN = 0;
 
-      const convertPageToA4 = async (sourcePage: any, sourceDoc: any, title: string, pageNumber: number) => {
+      const convertPageToA4 = async (
+        sourcePage: any,
+        _sourceDoc: any,
+        title: string,
+        pageNumber: number
+      ) => {
         const newPage = mergedPdf.addPage([A4_WIDTH, A4_HEIGHT]);
 
         newPage.drawRectangle({
@@ -561,8 +571,8 @@ export default function MultiPDFMergePage(queue_id: any) {
           const embeddedPage = await mergedPdf.embedPage(sourcePage);
           const { width: origWidth, height: origHeight } = embeddedPage;
 
-          const availableWidth = A4_WIDTH - (MARGIN);
-          const availableHeight = A4_HEIGHT - (MARGIN);
+          const availableWidth = A4_WIDTH - MARGIN;
+          const availableHeight = A4_HEIGHT - MARGIN;
 
           const scaleX = availableWidth / origWidth;
           const scaleY = availableHeight / origHeight;
@@ -580,10 +590,7 @@ export default function MultiPDFMergePage(queue_id: any) {
             width: scaledWidth,
             height: scaledHeight,
           });
-
-        } catch (embedError) {
-          console.warn(`Cannot embed page ${pageNumber} from ${title}:`, embedError);
-
+        } catch {
           newPage.drawText(`${title} - Page ${pageNumber}`, {
             x: A4_WIDTH / 2 - 60,
             y: A4_HEIGHT / 2 + 10,
@@ -600,7 +607,6 @@ export default function MultiPDFMergePage(queue_id: any) {
         }
       };
 
-      // เพิ่มหน้าจาก jsPDF
       setCurrentStep('กำลังเพิ่มหน้าจาก jsPDF...');
       const jsPdfDocument = await PDFDocument.load(jsPdfBytes);
       const jsPdfPageCount = jsPdfDocument.getPageCount();
@@ -620,30 +626,38 @@ export default function MultiPDFMergePage(queue_id: any) {
         const fileType = getFileType(url);
         const fileName = url.split('/').pop() || `File${fileNumber}`;
 
-        setCurrentStep(`กำลังประมวลผลไฟล์ที่ ${fileNumber}/${s3Urls.length} (${fileType.toUpperCase()})...`);
+        setCurrentStep(
+          `กำลังประมวลผลไฟล์ที่ ${fileNumber}/${s3Urls.length} (${fileType.toUpperCase()})...`
+        );
 
         try {
           if (fileType === 'pdf') {
-            // Handle PDF files
             const response = await fetch(url);
             if (!response.ok) {
-              throw new Error(`HTTP error! status: ${response.status} for PDF file ${fileNumber}`);
+              throw new Error(
+                `HTTP error! status: ${response.status} for PDF file ${fileNumber}`
+              );
             }
 
             const s3PdfBytes = await response.arrayBuffer();
             const s3PdfDocument = await PDFDocument.load(s3PdfBytes);
             const s3PageCount = s3PdfDocument.getPageCount();
 
-            setCurrentStep(`กำลังแปลง PDF ไฟล์ที่ ${fileNumber} (${s3PageCount} หน้า) เป็น A4...`);
+            setCurrentStep(
+              `กำลังแปลง PDF ไฟล์ที่ ${fileNumber} (${s3PageCount} หน้า) เป็น A4...`
+            );
 
             for (let i = 0; i < s3PageCount; i++) {
               const sourcePage = s3PdfDocument.getPage(i);
-              await convertPageToA4(sourcePage, s3PdfDocument, `PDF File ${fileNumber}`, i + 1);
+              await convertPageToA4(
+                sourcePage,
+                s3PdfDocument,
+                `PDF File ${fileNumber}`,
+                i + 1
+              );
               totalPagesProcessed++;
             }
-
           } else if (fileType === 'image') {
-            // Handle Image files
             setCurrentStep(`กำลังแปลงรูปภาพที่ ${fileNumber} เป็น PDF...`);
 
             const imagePdf = await convertImageToPDF(url, fileName);
@@ -651,23 +665,23 @@ export default function MultiPDFMergePage(queue_id: any) {
 
             for (let i = 0; i < imagePageCount; i++) {
               const sourcePage = imagePdf.getPage(i);
-              await convertPageToA4(sourcePage, imagePdf, `Image File ${fileNumber}`, i + 1);
+              await convertPageToA4(
+                sourcePage,
+                imagePdf,
+                `Image File ${fileNumber}`,
+                i + 1
+              );
               totalPagesProcessed++;
             }
-
           } else {
-            // Handle unknown file types
             throw new Error(`Unsupported file type for file ${fileNumber}`);
           }
 
-          // Update progress
           const currentProgress = 20 + (urlIndex + 1) * progressPerFile;
           setProgress(Math.round(currentProgress));
-
         } catch (error) {
           console.error(`Error processing file ${fileNumber} (${fileType}):`, error);
 
-          // Create error page
           const errorPage = mergedPdf.addPage([A4_WIDTH, A4_HEIGHT]);
           errorPage.drawRectangle({
             x: 0,
@@ -691,26 +705,34 @@ export default function MultiPDFMergePage(queue_id: any) {
             color: rgb(0.5, 0.5, 0.5),
           });
 
-          errorPage.drawText(`URL: ${url.substring(0, 50)}${url.length > 50 ? '...' : ''}`, {
-            x: 50,
-            y: A4_HEIGHT / 2 - 30,
-            size: 10,
-            color: rgb(0.5, 0.5, 0.5),
-          });
+          errorPage.drawText(
+            `URL: ${url.substring(0, 50)}${url.length > 50 ? '...' : ''}`,
+            {
+              x: 50,
+              y: A4_HEIGHT / 2 - 30,
+              size: 10,
+              color: rgb(0.5, 0.5, 0.5),
+            }
+          );
 
-          errorPage.drawText(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`, {
-            x: 50,
-            y: A4_HEIGHT / 2 - 50,
-            size: 10,
-            color: rgb(0.8, 0, 0),
-          });
+          errorPage.drawText(
+            `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            {
+              x: 50,
+              y: A4_HEIGHT / 2 - 50,
+              size: 10,
+              color: rgb(0.8, 0, 0),
+            }
+          );
         }
       }
 
       setCurrentStep('กำลังสร้างไฟล์ A4 ที่รวมแล้ว...');
       setProgress(90);
 
-      mergedPdf.setTitle(`Merged PDF - ${s3Urls.length} Files (${pdfCount} PDFs + ${imageCount} Images) Converted to A4`);
+      mergedPdf.setTitle(
+        `Merged PDF - ${s3Urls.length} Files (${pdfCount} PDFs + ${imageCount} Images) Converted to A4`
+      );
       mergedPdf.setCreator('Multi PDF & Image A4 Converter Tool');
       mergedPdf.setProducer('jsPDF + PDF-lib A4 Converter');
       mergedPdf.setCreationDate(new Date());
@@ -722,28 +744,36 @@ export default function MultiPDFMergePage(queue_id: any) {
 
       const url = URL.createObjectURL(blob);
 
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-      }
-
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(url);
-      
+
+      // --- แยก behavior iOS / Android ตรงนี้ ---
       if (isMobile && shouldAutoOpen) {
         if (isIOS) {
-          openPDFOnIOS(url);
+          // iOS: ใช้ window.location.replace ตาม code เดิม
+          window.location.replace(url);
+          return;
         } else {
+          // Android: เปิด tab ใหม่ ตาม code แบบใหม่
           window.open(url, '_blank');
+          // ยังเก็บ previewUrl ไว้ เผื่อกลับมา iframe ได้
+          // ไม่ต้อง return ก็ได้ แต่ถ้าไม่อยากให้โชว์ iframe ก็ใส่ return เลย
+          return;
         }
-        return;
       }
-      
+
       setShowPreview(true);
       setProgress(100);
-      setStatus(`สำเร็จ! รวม ${s3Urls.length} ไฟล์เป็น A4 แล้ว (${pdfCount} PDFs + ${imageCount} Images, รวม ${totalPagesProcessed + jsPdfPageCount} หน้า)`);
-
+      setStatus(
+        `สำเร็จ! รวม ${s3Urls.length} ไฟล์เป็น A4 แล้ว (${pdfCount} PDFs + ${imageCount} Images, รวม ${
+          totalPagesProcessed + jsPdfPageCount
+        } หน้า)`
+      );
     } catch (error) {
       console.error('Error merging files:', error);
-      setStatus(`เกิดข้อผิดพลาด: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setStatus(
+        `เกิดข้อผิดพลาด: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     } finally {
       setLoading(false);
       setCurrentStep('');
@@ -765,20 +795,15 @@ export default function MultiPDFMergePage(queue_id: any) {
     setStatus('แสดงตัวอย่าง jsPDF (A4) ด้านล่าง');
   };
 
-  const closePreview = () => {
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
-    }
-    setShowPreview(false);
-    setStatus('');
-  };
-
   const downloadPreviewedPDF = () => {
     if (previewUrl) {
       const a = document.createElement('a');
       a.href = previewUrl;
-      a.download = `Lab-Result-${printData?.customer?.ctm_fname || 'Unknown'}_${printData?.customer?.ctm_lname || 'User'}-${new Date(printData?.que_datetime || new Date()).toLocaleString('th-TH-u-ca-gregory', {
+      a.download = `Lab-Result-${
+        printData?.customer?.ctm_fname || 'Unknown'
+      }_${printData?.customer?.ctm_lname || 'User'}-${new Date(
+        printData?.que_datetime || new Date()
+      ).toLocaleString('th-TH-u-ca-gregory', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
@@ -788,31 +813,23 @@ export default function MultiPDFMergePage(queue_id: any) {
     }
   };
 
-  // Manual process function for button
-  const manualProcessPDF = async () => {
-    setAutoProcessed(false);
-    await mergePDFs(true);
-  };
-
-  // ฟังก์ชันเปิด PDF ใน tab ใหม่
   const openInNewTab = () => {
-    if (previewUrl) {
-      if (isIOS) {
-        openPDFOnIOS(previewUrl);
-      } else {
-        window.open(previewUrl, '_blank');
-      }
+    if (!previewUrl) return;
+    if (isIOS) {
+      openPDFOnIOS(previewUrl);
+    } else {
+      window.open(previewUrl, '_blank');
     }
   };
 
-  // นับจำนวนลิงค์และแยกประเภท (เผื่อไว้)
   const urlCount = s3Urls.length;
-  const fileTypes = s3Urls.map(url => getFileType(url));
-  const pdfCount = fileTypes.filter(type => type === 'pdf').length;
-  const imageCount = fileTypes.filter(type => type === 'image').length;
+  const typeList = s3Urls.map((url) => getFileType(url));
+  const pdfCount = typeList.filter((t) => t === 'pdf').length;
+  const imageCount = typeList.filter((t) => t === 'image').length;
 
   return (
     <div className="container mx-auto p-6 max-w-full">
+      {/* Android / Desktop preview (iOS ส่วนใหญ่จะโดน replace ออกไปแล้ว) */}
       {showPreview && previewUrl && (
         <div className="bg-white shadow-lg rounded-lg p-3 sm:p-6 mt-6">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 space-y-3 sm:space-y-0">
@@ -820,7 +837,6 @@ export default function MultiPDFMergePage(queue_id: any) {
               PDF Preview
             </h2>
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
-              {/* ✅ ปุ่ม Download — แสดงทุก platform */}
               <button
                 onClick={downloadPreviewedPDF}
                 className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-blue-600 text-white text-sm sm:text-base rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
@@ -830,7 +846,6 @@ export default function MultiPDFMergePage(queue_id: any) {
                 <span className="xs:hidden">Download</span>
               </button>
 
-              {/* ✅ ปุ่ม Open PDF — แสดงทุก platform */}
               {isMobile && (
                 <button
                   onClick={openInNewTab}
@@ -842,81 +857,56 @@ export default function MultiPDFMergePage(queue_id: any) {
                 </button>
               )}
 
-              {/* ✅ ปุ่ม Lab Only + ส่วนด้านล่าง แสดงเฉพาะ Desktop หรือ iOS เท่านั้น */}
-              {(!isMobile || isIOS) && (
-                <button
-                  onClick={previewJsPDFOnly}
-                  disabled={loading || !printData || Object.keys(printData).length === 0}
-                  className="w-full sm:w-auto py-2 px-3 sm:px-4 bg-green-600 text-white text-sm sm:text-base rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-400 transition-colors"
-                >
-                  <span className="inline-block mr-1">📄</span>
-                  <span className="hidden xs:inline">ดู Lab Report เท่านั้น</span>
-                  <span className="xs:hidden">Lab Only</span>
-                </button>
-              )}
+              <button
+                onClick={previewJsPDFOnly}
+                disabled={loading || !printData || Object.keys(printData).length === 0}
+                className="w-full sm:w-auto py-2 px-3 sm:px-4 bg-green-600 text-white text-sm sm:text-base rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-400 transition-colors"
+              >
+                <span className="inline-block mr-1">📄</span>
+                <span className="hidden xs:inline">ดู Lab Report เท่านั้น</span>
+              </button>
             </div>
           </div>
 
-          {/* ❗ ตั้งแต่ตรงนี้ลงไป: ซ่อนบน Android (isMobile && !isIOS) */}
-          {(!isMobile || isIOS) && (
-            <>
-              {/* Mobile Warning (จะเหลือใช้บน iOS มือถือเท่านั้น เพราะ Android ถูกกันออกด้วยเงื่อนไขด้านนอก) */}
-              {isMobile && (
-                <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                  <div className="flex items-start space-x-2">
-                    <span className="text-amber-500 text-lg">⚠️</span>
-                    <div className="text-amber-800 text-sm">
-                      <strong>📱 iOS Device:</strong>
-                      <p className="mt-1">
-                        กดปุ่ม <strong>"เปิดใน Tab ใหม่"</strong> หรือ{' '}
-                        <strong>"ดาวน์โหลด PDF"</strong> เพื่อดูไฟล์
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* PDF Viewer */}
-              <div className="border border-gray-200 sm:border-2 rounded-lg overflow-hidden">
-                {isMobile ? (
-                  <div className="relative">
-                    <object data={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1`} type="application/pdf" width="100%" height="600px">
-                      <iframe src={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1`} width="100%" height="600px">
-                        <div className="p-8 text-center bg-gray-100">
-                          <p className="text-gray-600 mb-4">
-                            This browser does not support PDFs.
-                          </p>
-                          {/* ปุ่ม fallback นี้จะไม่โผล่บน Android เพราะ wrapper ด้านบนกันไว้แล้ว */}
-                          <button
-                            onClick={openInNewTab}
-                            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                          >
-                            📄 เปิด PDF
-                          </button>
-                        </div>
-                      </iframe>
-                    </object>
-                  </div>
-                ) : (
+          {/* PDF Viewer */}
+          <div className="border border-gray-200 sm:border-2 rounded-lg overflow-hidden">
+            {isMobile ? (
+              <div className="relative">
+                <object
+                  data={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1`}
+                  type="application/pdf"
+                  width="100%"
+                  height="600px"
+                >
                   <iframe
-                    src={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1&zoom=page-fit`}
+                    src={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1`}
                     width="100%"
-                    height="100%"
-                    className="border-0 sm:h-[600px] md:h-[700px] lg:h-[800px]"
-                    title="PDF Preview"
-                  />
-                )}
+                    height="600px"
+                  >
+                    <div className="p-8 text-center bg-gray-100">
+                      <p className="text-gray-600 mb-4">
+                        This browser does not support PDFs.
+                      </p>
+                      <button
+                        onClick={openInNewTab}
+                        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                      >
+                        📄 เปิด PDF
+                      </button>
+                    </div>
+                  </iframe>
+                </object>
               </div>
-
-              {/* Instructions for PDF viewer */}
-              <div className="mt-3 p-2 sm:p-3 bg-gray-50 rounded text-xs sm:text-sm text-gray-600">
-                <strong className="block sm:inline">การใช้งาน PDF Viewer:</strong>
-                <span className="block sm:inline sm:ml-1">
-                  ใช้ toolbar ของ viewer เพื่อเลื่อนหน้า ซูม พิมพ์ หรือ ดาวน์โหลดไฟล์ PDF
-                </span>
-              </div>
-            </>
-          )}
+            ) : (
+              <iframe
+                src={`${previewUrl}#toolbar=1&navpanes=1&scrollbar=1&zoom=page-fit`}
+                width="100%"
+                height="100%"
+                className="border-0 sm:h-[600px] md:h-[700px] lg:h-[800px]"
+                title="PDF Preview"
+              />
+            )}
+          </div>
         </div>
       )}
     </div>
