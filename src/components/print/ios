@@ -36,18 +36,6 @@ export default function MultiPDFMergePage(queue_id: any) {
     setIsIOS(isIOSDevice());
   }, []);
 
-  // *** สำหรับ Android: ถ้ากลับมาจากหน้า PDF ให้เด้ง back ต่ออีกรอบเอง ***
-  useEffect(() => {
-    if (!isMobile || isIOS) return; // ทำเฉพาะ Android
-    const queueId = parseInt(queue_id.queue_id);
-    const storageKey = `labPdfBackAndroid-${queueId}`;
-    const shouldGoBack = sessionStorage.getItem(storageKey);
-    if (shouldGoBack === '1') {
-      sessionStorage.removeItem(storageKey);
-      window.history.back();
-    }
-  }, [isMobile, isIOS, queue_id.queue_id]);
-
   useEffect(() => {
     const queueId = parseInt(queue_id.queue_id);
     const fetchQueue = async () => {
@@ -254,17 +242,9 @@ export default function MultiPDFMergePage(queue_id: any) {
         const pdfBlob = jsPdfDoc.output('blob');
         const url = URL.createObjectURL(pdfBlob);
         
+        // *** ใช้ replace() แทน href เพื่อให้กด back ครั้งเดียว ***
         if (isMobile) {
-          if (isIOS) {
-            // iOS ใช้ replace ปกติ (ทดสอบว่าโอเคแล้ว)
-            window.location.replace(url);
-          } else {
-            // Android: ตั้ง flag ไว้ พอกลับเข้าหน้านี้จะ auto history.back()
-            const queueId = parseInt(queue_id.queue_id);
-            const storageKey = `labPdfBackAndroid-${queueId}`;
-            sessionStorage.setItem(storageKey, '1');
-            window.location.href = url;
-          }
+          window.location.replace(url);
           return;
         }
         
@@ -327,15 +307,9 @@ export default function MultiPDFMergePage(queue_id: any) {
       const blob = new Blob([mergedPdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
 
+      // *** ใช้ replace() แทน href เพื่อให้กด back ครั้งเดียว ***
       if (isMobile) {
-        if (isIOS) {
-          window.location.replace(url);
-        } else {
-          const queueId = parseInt(queue_id.queue_id);
-          const storageKey = `labPdfBackAndroid-${queueId}`;
-          sessionStorage.setItem(storageKey, '1');
-          window.location.href = url;
-        }
+        window.location.replace(url);
         return;
       }
 
@@ -367,14 +341,7 @@ export default function MultiPDFMergePage(queue_id: any) {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     
     if (isMobile) {
-      if (isIOS) {
-        window.location.replace(url);
-      } else {
-        const queueId = parseInt(queue_id.queue_id);
-        const storageKey = `labPdfBackAndroid-${queueId}`;
-        sessionStorage.setItem(storageKey, '1');
-        window.location.href = url;
-      }
+      window.location.replace(url);
       return;
     }
     
