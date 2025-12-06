@@ -1,3 +1,4 @@
+แก้ logic android จากไฟล์นี้ 
 'use client';
 
 import { useState, useEffect } from 'react';

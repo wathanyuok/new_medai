@@ -47,20 +47,6 @@ export default function MultiPDFMergePage(queue_id: any) {
     setIsAndroid(isAndroidDevice());
   }, []);
 
-  // 🔁 logic auto-back สำหรับ Android (กันต้องกด back 2 ครั้ง)
-  useEffect(() => {
-    const queueId = parseInt(queue_id.queue_id);
-    const sessionKey = `lab-pdf-auto-${queueId}`;
-    const autoBack = typeof window !== 'undefined'
-      ? sessionStorage.getItem(sessionKey)
-      : null;
-
-    if (isAndroid && autoBack === 'back') {
-      sessionStorage.removeItem(sessionKey);
-      window.history.back();
-    }
-  }, [isAndroid, queue_id.queue_id]);
-
   useEffect(() => {
     const queueId = parseInt(queue_id.queue_id);
     const fetchQueue = async () => {
@@ -309,8 +295,18 @@ export default function MultiPDFMergePage(queue_id: any) {
       doc.setDrawColor('#DDDAD0');
       doc.setTextColor('#7A7A73');
       doc.setLineWidth(0.5);
-      doc.line(5, pageHeight - 21, doc.internal.pageSize.getWidth() - 5, pageHeight - 21);
-      doc.line(5, pageHeight - 9, doc.internal.pageSize.getWidth() - 5, pageHeight - 9);
+      doc.line(
+        5,
+        pageHeight - 21,
+        doc.internal.pageSize.getWidth() - 5,
+        pageHeight - 21
+      );
+      doc.line(
+        5,
+        pageHeight - 9,
+        doc.internal.pageSize.getWidth() - 5,
+        pageHeight - 9
+      );
       doc.setFontSize(10);
       doc.text(
         `Reported by: ${printData.que_lab_analyst},${printData.que_lab_analyst_license}`,
@@ -397,29 +393,18 @@ export default function MultiPDFMergePage(queue_id: any) {
       const jsPdfBytes = jsPdfDoc.output('arraybuffer');
       setProgress(10);
 
-      // 🔹 กรณีไม่มีไฟล์จาก S3 → ใช้ jsPDF อย่างเดียว
+      // กรณีไม่มีไฟล์จาก S3 → ใช้ jsPDF อย่างเดียว
       if (s3Urls.length === 0) {
         const pdfBlob = jsPdfDoc.output('blob');
         const url = URL.createObjectURL(pdfBlob);
 
-        const key = `lab-pdf-auto-${parseInt(queue_id.queue_id)}`;
-
-        if (isMobile && isIOS) {
-          // iOS → เปิดด้วย replace (กด back ครั้งเดียว)
+        // ✅ Mobile (iOS + Android) → เปิดเหมือนกัน ใช้ replace
+        if (isMobile && (isIOS || isAndroid)) {
           window.location.replace(url);
           return;
         }
 
-        if (isMobile && isAndroid) {
-          // Android → เปิดใน iframe + set sessionStorage กัน back 2 ครั้ง
-          setPreviewUrl(url);
-          setShowPreview(true);
-          setLoading(false);
-          sessionStorage.setItem(key, 'back');
-          return;
-        }
-
-        // Desktop + อุปกรณ์อื่น
+        // Desktop + อื่น ๆ
         setPreviewUrl(url);
         setShowPreview(true);
         setLoading(false);
@@ -498,18 +483,9 @@ export default function MultiPDFMergePage(queue_id: any) {
       });
       const url = URL.createObjectURL(blob);
 
-      const key = `lab-pdf-auto-${parseInt(queue_id.queue_id)}`;
-
-      if (isMobile && isIOS) {
+      // ✅ Mobile (iOS + Android) → ใช้ replace เหมือนกัน
+      if (isMobile && (isIOS || isAndroid)) {
         window.location.replace(url);
-        return;
-      }
-
-      if (isMobile && isAndroid) {
-        setPreviewUrl(url);
-        setShowPreview(true);
-        setLoading(false);
-        sessionStorage.setItem(key, 'back');
         return;
       }
 
@@ -541,17 +517,9 @@ export default function MultiPDFMergePage(queue_id: any) {
     const url = URL.createObjectURL(pdfBlob);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
 
-    const key = `lab-pdf-auto-${parseInt(queue_id.queue_id)}`;
-
-    if (isMobile && isIOS) {
+    // ✅ Mobile (iOS + Android) → เปิดแท็บ PDF เลย
+    if (isMobile && (isIOS || isAndroid)) {
       window.location.replace(url);
-      return;
-    }
-
-    if (isMobile && isAndroid) {
-      setPreviewUrl(url);
-      setShowPreview(true);
-      sessionStorage.setItem(key, 'back');
       return;
     }
 
