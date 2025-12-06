@@ -1,9 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   webpack(config) {
     config.module.rules.push({
       test: /\.svg$/,
@@ -14,15 +11,14 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: 'cdn.komosite.com',
-        port: '',
-        pathname: '/**',
-        search: '',
+        protocol: "https",
+        hostname: "cdn.komosite.com",
+        port: "",
+        pathname: "/**",
+        search: "",
       },
     ],
   },
 };
-
 
 export default nextConfig;
