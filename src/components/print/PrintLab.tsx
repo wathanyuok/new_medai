@@ -74,13 +74,6 @@ export default function MultiPDFMergePage(queue_id: any) {
     load();
   }, []);
 
-  useEffect(() => {
-    if (dataLoaded && !autoProcessed && printData && Object.keys(printData).length > 0) {
-      setAutoProcessed(true);
-      mergePDFs();
-    }
-  }, [dataLoaded, autoProcessed, printData]);
-
   const GetQueue = async (queue_id: number) => {
     const token = localStorage.getItem('token');
     const res = await axios.get(
@@ -168,7 +161,8 @@ export default function MultiPDFMergePage(queue_id: any) {
 
       const merged = await PDFDocument.create();
 
-      const A4 = [595.276, 841.89];
+      // ✅ กำหนดเป็น tuple ให้ตรง type ของ addPage
+      const A4: [number, number] = [595.276, 841.89];
 
       const embedPage = async (srcPage: any) => {
         const pg = merged.addPage(A4);
@@ -239,6 +233,13 @@ export default function MultiPDFMergePage(queue_id: any) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (dataLoaded && !autoProcessed && printData && Object.keys(printData).length > 0) {
+      setAutoProcessed(true);
+      mergePDFs();
+    }
+  }, [dataLoaded, autoProcessed, printData]);
 
   const downloadPDF = () => {
     if (!previewUrl) return;
