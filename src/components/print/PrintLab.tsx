@@ -20,13 +20,22 @@ export default function MultiPDFMergePage(queue_id: any) {
   const [dataLoaded, setDataLoaded] = useState(false);
   const [autoProcessed, setAutoProcessed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isAndroid, setIsAndroid] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
 
-  const isMobileDevice = () => {
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const detectDevice = () => {
+    const ua = navigator.userAgent;
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+    const isAndroidDevice = /Android/i.test(ua);
+    const isIOSDevice = /iPhone|iPad|iPod/i.test(ua);
+    return { isMobile: isMobileDevice, isAndroid: isAndroidDevice, isIOS: isIOSDevice };
   };
 
   useEffect(() => {
-    setIsMobile(isMobileDevice());
+    const { isMobile: mobile, isAndroid, isIOS } = detectDevice();
+    setIsMobile(mobile);
+    setIsAndroid(isAndroid);
+    setIsIOS(isIOS);
   }, []);
 
   useEffect(() => {
@@ -262,6 +271,20 @@ export default function MultiPDFMergePage(queue_id: any) {
     return doc;
   };
 
+  const openPDFMobile = (pdfUrl: string) => {
+    if (isIOS) {
+      // iOS: ใช้ replace ตามปกติ (ทำงานได้ดี)
+      window.location.replace(pdfUrl);
+    } else if (isAndroid) {
+      // Android: ใช้ history API + replace เพื่อให้ back ครั้งเดียวปิด PDF
+      window.history.replaceState(null, '', pdfUrl);
+      window.location.replace(pdfUrl);
+    } else {
+      // Desktop: เปิดปกติ
+      window.open(pdfUrl, '_blank');
+    }
+  };
+
   const mergePDFs = async () => {
     try {
       const { PDFDocument, rgb } = await import('pdf-lib');
@@ -273,9 +296,8 @@ export default function MultiPDFMergePage(queue_id: any) {
         const pdfBlob = jsPdfDoc.output('blob');
         const url = URL.createObjectURL(pdfBlob);
 
-        if (isMobile) {
-          // สำคัญ: mobile ใช้ replace → history จะเป็น [หน้าเดิม, PDF] กด back ครั้งเดียว
-          window.location.replace(url);
+        if (isMobile && (isAndroid || isIOS)) {
+          openPDFMobile(url);
           return;
         }
 
@@ -338,8 +360,8 @@ export default function MultiPDFMergePage(queue_id: any) {
       const blob = new Blob([mergedPdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
 
-      if (isMobile) {
-        window.location.replace(url);
+      if (isMobile && (isAndroid || isIOS)) {
+        openPDFMobile(url);
         return;
       }
 
@@ -370,8 +392,8 @@ export default function MultiPDFMergePage(queue_id: any) {
     const url = URL.createObjectURL(pdfBlob);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
 
-    if (isMobile) {
-      window.location.replace(url);
+    if (isMobile && (isAndroid || isIOS)) {
+      openPDFMobile(url);
       return;
     }
 
