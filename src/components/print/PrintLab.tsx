@@ -7,6 +7,7 @@ import axios from 'axios';
 import font from '@/font/font.json';
 import fontBold from '@/font/fontBold.json';
 import { fetchS3Image } from '@/utils/getS3file';
+import { useRouter } from 'next/navigation';
 
 export default function MultiPDFMergePage(queue_id: any) {
   const [loading, setLoading] = useState(false);
@@ -22,6 +23,8 @@ export default function MultiPDFMergePage(queue_id: any) {
   const [autoProcessed, setAutoProcessed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+
+  const router = useRouter();
 
   const isIOSDevice = () => {
     return (
@@ -805,7 +808,10 @@ export default function MultiPDFMergePage(queue_id: any) {
             <div className="flex items-center space-x-2">
               {isIOS && (
                 <button
-                  onClick={() => setShowPreview(false)}
+                  onClick={() => {
+                    // กลับไปหน้าดูผลตรวจ
+                    router.push('/ai/health-reports');
+                  }}
                   className="px-3 py-1.5 rounded-md bg-gray-200 text-gray-800 text-sm hover:bg-gray-300"
                 >
                   ← กลับ
