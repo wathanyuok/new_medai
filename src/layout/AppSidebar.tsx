@@ -112,12 +112,12 @@ type MainItem = {
 const navItems: NavItem[] = [
   {
     icon: <FaRegAddressCard size={20} />,
-    name: "ข้อมูลผู้ใช้บริการคลินิก",
+    name: "ข้อมูลผู้ใช้บริการ",
     path: "/ai",
   },
   {
     icon: <CgFileDocument size={20} />,
-    name: "เอกสารผลตรวจจากคลินิก",
+    name: "เอกสารผลตรวจ",
     path: "/ai/health-reports",
   },
   {
