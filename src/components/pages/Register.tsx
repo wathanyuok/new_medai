@@ -12,7 +12,7 @@ import { toast } from "react-toastify";
 interface RegisterProps {
   isOpen: boolean;
   onClose: () => void;
-  defaultCitizenId?: string; // ✅ เพิ่ม: รับเลขบัตรจาก CitizenIdSync
+  defaultCitizenId?: string;
   onSyncSuccess?: () => void;
   onSyncError?: (error: string) => void;
   showTermsCheckbox?: boolean;
@@ -49,14 +49,9 @@ const Register: React.FC<RegisterProps> = ({
   const getApiUrl = () => apiUrl || process.env.NEXT_PUBLIC_API_URL;
   const getShopId = () => shopId || parseInt(process.env.NEXT_PUBLIC_SHOP_ID || "950");
 
-  // ✅ prefill citizenId จาก parent
+  // ✅ Prefill CID เฉพาะตอนเปิด modal (หรือ defaultCitizenId เปลี่ยน)
   useEffect(() => {
-    if (isOpen) {
-      setCid(defaultCitizenId || '');
-    }
-  }, [isOpen, defaultCitizenId]);
-
-  const resetState = () => {
+    if (!isOpen) return;
     setCid(defaultCitizenId || '');
     setOtp('');
     setBlindPhone('');
@@ -64,10 +59,9 @@ const Register: React.FC<RegisterProps> = ({
     setLoading(false);
     setPageIndex(0);
     setIsAccept(false);
-  };
+  }, [isOpen, defaultCitizenId]);
 
   const handleClose = () => {
-    resetState();
     onClose();
   };
 
@@ -226,9 +220,10 @@ const Register: React.FC<RegisterProps> = ({
                   <div>
                     <Label>หมายเลขบัตรประชาชน</Label>
                     <Input
+                      key={cid}              // ✅ สำคัญ: ทำให้ defaultValue อัปเดตเมื่อ cid ถูก set จาก parent
                       disabled={loading}
                       type="text"
-                      value={cid} // ✅ prefill ได้
+                      defaultValue={cid}     // ✅ แทน value (InputField ของคุณไม่รองรับ value)
                       onChange={handleCitizenIdChange}
                       placeholder="x-xxxx-xxxx-xx-x"
                       max="13"
@@ -309,7 +304,11 @@ const Register: React.FC<RegisterProps> = ({
                     />
                   </div>
 
-                  {error && <p className="text-sm text-red-500 dark:text-red-400 text-center">{error}</p>}
+                  {error && (
+                    <p className="text-sm text-red-500 dark:text-red-400 text-center">
+                      {error}
+                    </p>
+                  )}
                 </div>
               </div>
             </form>
