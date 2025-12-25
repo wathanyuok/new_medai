@@ -183,55 +183,56 @@ export default function Register(props: RegisterProps) {
     </div>
   );
 
-  // Styles
-  const inputStyle = "w-full px-4 py-3 border border-gray-200 rounded-lg text-gray-800 placeholder:text-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-all bg-white";
-  const selectStyle = "w-full px-4 py-3 border border-gray-200 rounded-lg appearance-none bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-all";
-  const labelRequired = "block text-sm font-medium text-pink-500 mb-2";
-  const labelOptional = "block text-sm font-medium text-gray-800 mb-2";
+  // Styles - เปลี่ยนเป็นสีดำ
+  const inputStyle = "w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-200 rounded-lg text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-all bg-white text-sm sm:text-base";
+  const selectStyle = "w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-200 rounded-lg appearance-none bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-all text-sm sm:text-base";
+  const labelRequired = "block text-sm font-medium text-gray-800 mb-1.5 sm:mb-2";
+  const labelOptional = "block text-sm font-medium text-gray-600 mb-1.5 sm:mb-2";
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} className="max-w-[900px] m-4 z-99">
-      <div className="relative w-full max-w-[900px] overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-8">
+    <Modal isOpen={isOpen} onClose={handleClose} className="max-w-[900px] m-2 sm:m-4 z-99">
+      <div className="relative w-full max-w-[900px] max-h-[90vh] overflow-y-auto rounded-2xl sm:rounded-3xl bg-white p-3 sm:p-4 dark:bg-gray-900 lg:p-8">
         
         {/* Hospital Registration Form */}
         {pageIndex === 0 && (
-          <div className="bg-white rounded-2xl p-2 md:p-4">
-            <h1 className="text-xl md:text-2xl font-semibold text-gray-800 mb-8">
+          <div className="bg-white rounded-xl sm:rounded-2xl p-1 sm:p-2 md:p-4">
+            <h1 className="text-lg sm:text-xl md:text-2xl font-semibold text-gray-800 mb-4 sm:mb-6 md:mb-8 pr-8">
               เพิ่มข้อมูลเพื่อลงทะเบียนใช้บริการสถานพยาบาล
             </h1>
 
-            <form onSubmit={handleSubmitHospitalRegistration} className="space-y-5">
-              {/* Row 1: คำนำหน้า, ชื่อจริง, นามสกุล */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className={labelRequired}>
-                    คำนำหน้า <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <select
-                      name="prefix"
-                      value={formData.prefix}
-                      onChange={handleFormChange}
-                      required
-                      className={selectStyle}
-                    >
-                      <option value="" disabled>
-                        เลือกคำนำหน้า
+            <form onSubmit={handleSubmitHospitalRegistration} className="space-y-4 sm:space-y-5">
+              {/* Row 1: คำนำหน้า */}
+              <div>
+                <label className={labelRequired}>
+                  คำนำหน้า <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <select
+                    name="prefix"
+                    value={formData.prefix}
+                    onChange={handleFormChange}
+                    required
+                    className={selectStyle}
+                  >
+                    <option value="" disabled>
+                      เลือกคำนำหน้า
+                    </option>
+                    {prefixes.map((prefix) => (
+                      <option key={prefix} value={prefix}>
+                        {prefix}
                       </option>
-                      {prefixes.map((prefix) => (
-                        <option key={prefix} value={prefix}>
-                          {prefix}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
+                    ))}
+                  </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
                   </div>
                 </div>
+              </div>
 
+              {/* Row 2: ชื่อจริง, นามสกุล */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className={labelRequired}>
                     ชื่อจริงตามบัตรประชาชน <span className="text-red-500">*</span>
@@ -276,7 +277,7 @@ export default function Register(props: RegisterProps) {
                   onClick={(e) => e.currentTarget.showPicker()}
                   required
                   max={new Date().toISOString().split('T')[0]}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-all bg-white cursor-pointer"
+                  className={`${inputStyle} cursor-pointer`}
                 />
               </div>
 
@@ -299,13 +300,14 @@ export default function Register(props: RegisterProps) {
               {/* ที่อยู่ (บรรทัดที่ 2) */}
               <div>
                 <label className={labelOptional}>
-                  ที่อยู่ (บรรทัดที่ 2)
+                  ที่อยู่ (บรรทัดที่ 2) - ไม่บังคับ
                 </label>
                 <input
                   type="text"
                   name="address2"
                   value={formData.address2}
                   onChange={handleFormChange}
+                  placeholder="ที่อยู่เพิ่มเติม (ถ้ามี)"
                   className={inputStyle}
                 />
               </div>
@@ -333,15 +335,15 @@ export default function Register(props: RegisterProps) {
                     ))}
                   </select>
                   <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </div>
                 </div>
               </div>
 
-              {/* เขต/อำเภอ, แขวง/ตำบล, รหัสไปรษณีย์ */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* เขต/อำเภอ, แขวง/ตำบล */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className={labelRequired}>
                     เขต/อำเภอ <span className="text-red-500">*</span>
@@ -351,56 +353,58 @@ export default function Register(props: RegisterProps) {
                     name="district"
                     value={formData.district}
                     onChange={handleFormChange}
-                    placeholder="บางใหญ่"
+                    placeholder="เช่น บางใหญ่"
                     required
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-all bg-white"
+                    className={inputStyle}
                   />
                 </div>
 
                 <div>
                   <label className={labelRequired}>
-                    แขวง/ ตำบล <span className="text-red-500">*</span>
+                    แขวง/ตำบล <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     name="subDistrict"
                     value={formData.subDistrict}
                     onChange={handleFormChange}
-                    placeholder="บางใหญ่"
+                    placeholder="เช่น บางใหญ่"
                     required
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-all bg-white"
-                  />
-                </div>
-
-                <div>
-                  <label className={labelRequired}>
-                    รหัสไปรษณีย์ <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="postalCode"
-                    value={formData.postalCode}
-                    onChange={handleFormChange}
-                    placeholder="11140"
-                    required
-                    maxLength={5}
-                    pattern="[0-9]{5}"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-all bg-white"
+                    className={inputStyle}
                   />
                 </div>
               </div>
 
+              {/* รหัสไปรษณีย์ */}
+              <div>
+                <label className={labelRequired}>
+                  รหัสไปรษณีย์ <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="postalCode"
+                  value={formData.postalCode}
+                  onChange={handleFormChange}
+                  placeholder="เช่น 11140"
+                  required
+                  maxLength={5}
+                  pattern="[0-9]{5}"
+                  inputMode="numeric"
+                  className={`${inputStyle} sm:max-w-[200px]`}
+                />
+              </div>
+
               {/* Error Message */}
               {error && (
-                <p className="text-sm text-red-500 dark:text-red-400 text-center">{error}</p>
+                <p className="text-sm text-red-500 text-center py-2">{error}</p>
               )}
 
               {/* Submit Button */}
-              <div className="pt-4 flex justify-center">
+              <div className="pt-4 sm:pt-6 flex justify-center">
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-8 py-3 bg-blue-100 hover:bg-blue-200 text-blue-500 font-medium rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full sm:w-auto px-6 sm:px-8 py-3 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
                 >
                   {loading ? <LoadingSpinner /> : "ลงทะเบียนใช้บริการสถานพยาบาล"}
                 </button>
@@ -411,13 +415,13 @@ export default function Register(props: RegisterProps) {
 
         {/* Success Page */}
         {pageIndex === 1 && (
-          <div className="flex flex-col items-center justify-center py-12 px-4">
+          <div className="flex flex-col items-center justify-center py-8 sm:py-12 px-4">
             {/* Success Icon */}
-            <div className="w-32 h-32 mb-6 relative">
-              <div className="absolute inset-0 bg-pink-100 rounded-full"></div>
-              <div className="absolute inset-2 bg-pink-200 rounded-full flex items-center justify-center">
+            <div className="w-24 h-24 sm:w-32 sm:h-32 mb-4 sm:mb-6 relative">
+              <div className="absolute inset-0 bg-green-100 rounded-full"></div>
+              <div className="absolute inset-2 bg-green-200 rounded-full flex items-center justify-center">
                 <svg
-                  className="w-16 h-16 text-pink-500"
+                  className="w-12 h-12 sm:w-16 sm:h-16 text-green-500"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -433,17 +437,17 @@ export default function Register(props: RegisterProps) {
             </div>
 
             {/* Success Text */}
-            <h2 className="text-2xl font-semibold text-gray-800 mb-2">
+            <h2 className="text-xl sm:text-2xl font-semibold text-gray-800 mb-2">
               ลงทะเบียนสำเร็จ
             </h2>
-            <p className="text-gray-500 text-center mb-8">
+            <p className="text-gray-500 text-center mb-6 sm:mb-8 text-sm sm:text-base">
               ข้อมูลของคุณถูกบันทึกเรียบร้อยแล้ว
             </p>
 
             {/* Close Button */}
             <button
               onClick={handleSuccessClose}
-              className="px-8 py-3 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2"
+              className="w-full sm:w-auto px-6 sm:px-8 py-3 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2 text-sm sm:text-base"
             >
               ดำเนินการต่อ
             </button>
