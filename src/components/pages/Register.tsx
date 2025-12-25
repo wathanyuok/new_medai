@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Input from "@/components/form/input/InputField";
 import Label from "@/components/form/Label";
 import Button from "@/components/ui/button/Button";
@@ -9,12 +9,12 @@ import Checkbox from "../form/input/Checkbox";
 import Link from "next/link";
 import { toast } from "react-toastify";
 
-interface CitizenIdSyncProps {
+interface RegisterProps {
   isOpen: boolean;
   onClose: () => void;
+  defaultCitizenId?: string; // ✅ เพิ่ม: รับเลขบัตรจาก CitizenIdSync
   onSyncSuccess?: () => void;
   onSyncError?: (error: string) => void;
-  onNeedRegister?: (cid: string) => void; // ✅ เพิ่ม
   showTermsCheckbox?: boolean;
   shopId?: number;
   apiUrl?: string;
@@ -28,17 +28,16 @@ interface SyncResponse {
   };
 }
 
-const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
+const Register: React.FC<RegisterProps> = ({
   isOpen,
   onClose,
+  defaultCitizenId,
   onSyncSuccess,
   onSyncError,
-  onNeedRegister,
   showTermsCheckbox = true,
   shopId,
   apiUrl
 }) => {
-  // States
   const [cid, setCid] = useState('');
   const [otp, setOtp] = useState('');
   const [blindPhone, setBlindPhone] = useState('');
@@ -47,13 +46,18 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
   const [pageIndex, setPageIndex] = useState(0);
   const [isAccept, setIsAccept] = useState(false);
 
-  // Get configuration values
   const getApiUrl = () => apiUrl || process.env.NEXT_PUBLIC_API_URL;
   const getShopId = () => shopId || parseInt(process.env.NEXT_PUBLIC_SHOP_ID || "950");
 
-  // Reset component state
+  // ✅ prefill citizenId จาก parent
+  useEffect(() => {
+    if (isOpen) {
+      setCid(defaultCitizenId || '');
+    }
+  }, [isOpen, defaultCitizenId]);
+
   const resetState = () => {
-    setCid('');
+    setCid(defaultCitizenId || '');
     setOtp('');
     setBlindPhone('');
     setError('');
@@ -62,13 +66,11 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
     setIsAccept(false);
   };
 
-  // Handle modal close
   const handleClose = () => {
     resetState();
     onClose();
   };
 
-  // Step 1: Submit citizen ID
   const handleSubmitCitizenId = async () => {
     if (!cid.trim()) {
       setError("กรุณากรอกหมายเลขบัตรประชาชน");
@@ -79,8 +81,6 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
     setError('');
 
     try {
-      const email = localStorage.getItem("email");
-      const phone_number = localStorage.getItem("co_tel");
       const token = localStorage.getItem("token");
       if (!token) {
         throw new Error("ไม่พบ token การเข้าสู่ระบบ");
@@ -92,11 +92,7 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          co_citizen_id: cid,
-          co_email: email,
-          co_tel: phone_number
-        }),
+        body: JSON.stringify({ co_citizen_id: cid }),
       });
 
       if (!response.ok) {
@@ -106,21 +102,12 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
       const json: SyncResponse = await response.json();
 
       if (json.status) {
-        // Format phone number to hide middle digits
         const formattedTel = json.co_tel?.replace(/(\d{3})\d{3}(\d{4})/, 'xxx-xxx-$2') || '';
         setBlindPhone(formattedTel);
         setPageIndex(1);
         setError("");
       } else {
-        /**
-         * ✅ Requirement: ถ้าไม่มี HN ให้ไปกรอกฟอร์มก่อน
-         * ตอนนี้ backend ส่ง status=false มา
-         * เราจะถือว่าเป็นเคส "ต้องไป Register" ตาม requirement
-         * (ถ้าจริง ๆ status=false มีหลายสาเหตุ แนะนำให้ backend ส่ง reason/code มา แล้วค่อยแยก)
-         */
-        onNeedRegister?.(cid);
-        handleClose();
-        return;
+        setError("รหัสบัตรประชาชนไม่ถูกต้องหรือถูกเชื่อมต่อข้อมูลไปแล้ว");
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "เกิดข้อผิดพลาดในการเชื่อมต่อ";
@@ -131,7 +118,6 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
     }
   };
 
-  // Step 2: Submit OTP verification
   const handleSubmitOtp = async () => {
     if (!otp.trim() || otp.length !== 6) {
       setError("กรุณากรอกรหัส OTP 6 หลัก");
@@ -166,9 +152,7 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
 
       const data: SyncResponse = await response.json();
 
-      // ✅ แก้ typo: ลบ "ปด" ออกแล้ว
       if (data.status) {
-        // Update localStorage
         if (data.data?.access_token) {
           localStorage.setItem("token", data.data.access_token);
         }
@@ -179,8 +163,6 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
         onSyncSuccess?.();
 
         toast.success("เชื่อมต่อข้อมูลสำเร็จ");
-
-        // Reload page to reflect changes
         window.location.reload();
       } else {
         setError("รหัส OTP ไม่ถูกต้องหรือหมดอายุแล้ว");
@@ -194,21 +176,16 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
     }
   };
 
-  // Format citizen ID input
   const handleCitizenIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+    const value = e.target.value.replace(/\D/g, '');
     setCid(value);
   };
 
-  // Format OTP input
   const handleOtpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
-    if (value.length <= 6) {
-      setOtp(value);
-    }
+    const value = e.target.value.replace(/\D/g, '');
+    if (value.length <= 6) setOtp(value);
   };
 
-  // Loading component
   const LoadingSpinner = () => (
     <div className="flex justify-center items-center gap-2">
       <svg width="40" height="20" viewBox="0 0 120 30">
@@ -231,11 +208,10 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
       <div className="relative w-full max-w-[700px] overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-8">
         <div className="px-2 pr-6">
           <h4 className="mb-2 text-xl font-semibold text-gray-800 dark:text-white/90">
-            เชื่อมต่อข้อมูลกับสถานพยาบาล
+            ลงทะเบียน/กรอกข้อมูลก่อนเชื่อมต่อ
           </h4>
         </div>
 
-        {/* Step 1: Citizen ID Input */}
         {pageIndex === 0 && (
           <>
             <form
@@ -246,20 +222,20 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
               }}
             >
               <div className="custom-scrollbar max-h-[450px] overflow-y-auto px-2 pb-3 space-y-8">
-                <div>
-                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-1">
-                    <div>
-                      <Label>หมายเลขบัตรประชาชน</Label>
-                      <Input
-                        disabled={loading}
-                        type="text"
-                        onChange={handleCitizenIdChange}
-                        placeholder="x-xxxx-xxxx-xx-x"
-                        max="13"
-                      />
-                    </div>
-                    {error && <p className="text-sm text-red-500 dark:text-red-400">{error}</p>}
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-1">
+                  <div>
+                    <Label>หมายเลขบัตรประชาชน</Label>
+                    <Input
+                      disabled={loading}
+                      type="text"
+                      value={cid} // ✅ prefill ได้
+                      onChange={handleCitizenIdChange}
+                      placeholder="x-xxxx-xxxx-xx-x"
+                      max="13"
+                    />
                   </div>
+
+                  {error && <p className="text-sm text-red-500 dark:text-red-400">{error}</p>}
                 </div>
               </div>
 
@@ -296,13 +272,12 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
                 className="flex justify-center"
                 size="sm"
               >
-                {loading ? <LoadingSpinner /> : "เชื่อมต่อข้อมูล"}
+                {loading ? <LoadingSpinner /> : "ถัดไป"}
               </Button>
             </div>
           </>
         )}
 
-        {/* Step 2: OTP Verification */}
         {pageIndex === 1 && (
           <>
             <form
@@ -314,12 +289,6 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
             >
               <div className="custom-scrollbar max-h-[450px] overflow-y-auto px-2 pb-3 space-y-8">
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-1">
-                  <p className="text-md flex text-center justify-center text-gray-500 dark:text-gray-400">
-                    หมายเลขบัตรประชาชนที่ใช้เชื่อมต่อ
-                  </p>
-                  <p className="text-md flex justify-center text-pink-400 dark:text-gray-400">
-                    {cid}
-                  </p>
                   <p className="text-md flex text-center justify-center text-gray-500 dark:text-gray-400">
                     กรุณากรอกรหัสยืนยันที่เราส่งไปยังหมายเลขโทรศัพท์ของคุณ
                   </p>
@@ -337,20 +306,10 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
                       maxLength={6}
                       value={otp}
                       onChange={handleOtpChange}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleSubmitOtp();
-                        }
-                      }}
                     />
                   </div>
 
-                  {error && (
-                    <p className="text-sm text-red-500 dark:text-red-400 text-center">
-                      {error}
-                    </p>
-                  )}
+                  {error && <p className="text-sm text-red-500 dark:text-red-400 text-center">{error}</p>}
                 </div>
               </div>
             </form>
@@ -372,4 +331,4 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
   );
 };
 
-export default CitizenIdSync;
+export default Register;

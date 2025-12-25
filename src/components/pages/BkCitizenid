@@ -1,5 +1,4 @@
 'use client';
-
 import React, { useState } from 'react';
 import Input from "@/components/form/input/InputField";
 import Label from "@/components/form/Label";
@@ -14,7 +13,6 @@ interface CitizenIdSyncProps {
   onClose: () => void;
   onSyncSuccess?: () => void;
   onSyncError?: (error: string) => void;
-  onNeedRegister?: (cid: string) => void; // ✅ เพิ่ม
   showTermsCheckbox?: boolean;
   shopId?: number;
   apiUrl?: string;
@@ -33,7 +31,6 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
   onClose,
   onSyncSuccess,
   onSyncError,
-  onNeedRegister,
   showTermsCheckbox = true,
   shopId,
   apiUrl
@@ -78,9 +75,10 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
     setLoading(true);
     setError('');
 
+
     try {
       const email = localStorage.getItem("email");
-      const phone_number = localStorage.getItem("co_tel");
+      const phone_number = localStorage.getItem("co_tel")
       const token = localStorage.getItem("token");
       if (!token) {
         throw new Error("ไม่พบ token การเข้าสู่ระบบ");
@@ -92,11 +90,7 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          co_citizen_id: cid,
-          co_email: email,
-          co_tel: phone_number
-        }),
+       body: JSON.stringify({ co_citizen_id: cid, co_email: email, co_tel: phone_number }),
       });
 
       if (!response.ok) {
@@ -112,15 +106,7 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
         setPageIndex(1);
         setError("");
       } else {
-        /**
-         * ✅ Requirement: ถ้าไม่มี HN ให้ไปกรอกฟอร์มก่อน
-         * ตอนนี้ backend ส่ง status=false มา
-         * เราจะถือว่าเป็นเคส "ต้องไป Register" ตาม requirement
-         * (ถ้าจริง ๆ status=false มีหลายสาเหตุ แนะนำให้ backend ส่ง reason/code มา แล้วค่อยแยก)
-         */
-        onNeedRegister?.(cid);
-        handleClose();
-        return;
+        setError("รหัสบัตรประชาชนไม่ถูกต้องหรือถูกเชื่อมต่อข้อมูลไปแล้ว");
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "เกิดข้อผิดพลาดในการเชื่อมต่อ";
@@ -166,8 +152,7 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
 
       const data: SyncResponse = await response.json();
 
-      // ✅ แก้ typo: ลบ "ปด" ออกแล้ว
-      if (data.status) {
+      if (data.status) {ปด
         // Update localStorage
         if (data.data?.access_token) {
           localStorage.setItem("token", data.data.access_token);
@@ -178,6 +163,7 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
         handleClose();
         onSyncSuccess?.();
 
+        // Show success message
         toast.success("เชื่อมต่อข้อมูลสำเร็จ");
 
         // Reload page to reflect changes
@@ -238,13 +224,7 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
         {/* Step 1: Citizen ID Input */}
         {pageIndex === 0 && (
           <>
-            <form
-              className="flex flex-col"
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSubmitCitizenId();
-              }}
-            >
+            <form className="flex flex-col" onSubmit={(e) => { e.preventDefault(); handleSubmitCitizenId(); }}>
               <div className="custom-scrollbar max-h-[450px] overflow-y-auto px-2 pb-3 space-y-8">
                 <div>
                   <div className="grid grid-cols-1 gap-4 lg:grid-cols-1">
@@ -253,9 +233,11 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
                       <Input
                         disabled={loading}
                         type="text"
+                        // value={cid}
                         onChange={handleCitizenIdChange}
                         placeholder="x-xxxx-xxxx-xx-x"
-                        max="13"
+                        max='13'
+                      // maxLength={13}
                       />
                     </div>
                     {error && <p className="text-sm text-red-500 dark:text-red-400">{error}</p>}
@@ -276,14 +258,12 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
                       <Link target="_blank" href="">
                         ข้อตกลงการใช้บริการ
                       </Link>
-                    </span>{' '}
-                    และ{' '}
+                    </span> และ{' '}
                     <span className="text-brand-500 hover:text-brand-600 dark:text-white/90 font-medium">
                       <Link target="_blank" href="">
                         นโยบายความเป็นส่วนตัว
                       </Link>
-                    </span>{' '}
-                    ของเรา
+                    </span> ของเรา
                   </p>
                 </div>
               )}
@@ -295,6 +275,7 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
                 onClick={handleSubmitCitizenId}
                 className="flex justify-center"
                 size="sm"
+              // type="button"
               >
                 {loading ? <LoadingSpinner /> : "เชื่อมต่อข้อมูล"}
               </Button>
@@ -305,13 +286,7 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
         {/* Step 2: OTP Verification */}
         {pageIndex === 1 && (
           <>
-            <form
-              className="flex flex-col"
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSubmitOtp();
-              }}
-            >
+            <form className="flex flex-col" onSubmit={(e) => { e.preventDefault(); handleSubmitOtp(); }}>
               <div className="custom-scrollbar max-h-[450px] overflow-y-auto px-2 pb-3 space-y-8">
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-1">
                   <p className="text-md flex text-center justify-center text-gray-500 dark:text-gray-400">
@@ -326,11 +301,10 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
                   <p className="text-md flex justify-center text-pink-400 dark:text-gray-400">
                     {blindPhone}
                   </p>
-
                   <div className="flex justify-center">
                     <input
                       disabled={loading}
-                      placeholder="รหัสยืนยัน"
+                      placeholder='รหัสยืนยัน'
                       className="text-center text-lg w-full sm:w-4/12 border border-gray-400 bg-white py-4 rounded-md"
                       type="text"
                       inputMode="numeric"
@@ -345,12 +319,7 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
                       }}
                     />
                   </div>
-
-                  {error && (
-                    <p className="text-sm text-red-500 dark:text-red-400 text-center">
-                      {error}
-                    </p>
-                  )}
+                  {error && <p className="text-sm text-red-500 dark:text-red-400 text-center">{error}</p>}
                 </div>
               </div>
             </form>
@@ -361,6 +330,7 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
                 className="flex justify-center"
                 size="sm"
                 disabled={loading || otp.length !== 6}
+              // type="button"
               >
                 {loading ? <LoadingSpinner /> : "ยืนยัน"}
               </Button>

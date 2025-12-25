@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
+import Image from 'next/image';
 import CitizenIdSync from "@/components/pages/CitizenIdSync";
-import Register from "@/components/pages/Register";
 import { useCitizenSync } from "@/hooks/useCitizenSync";
+import { LiaIdCardSolid } from 'react-icons/lia';
 
 interface NoSyncedComponentProps {
   title?: string;
@@ -26,6 +27,7 @@ const NoSyncedComponent: React.FC<NoSyncedComponentProps> = ({
   showTermsCheckbox = true,
   className = ""
 }) => {
+  // Use the citizen sync hook
   const {
     isSyncModalOpen,
     openSyncModal,
@@ -34,10 +36,7 @@ const NoSyncedComponent: React.FC<NoSyncedComponentProps> = ({
     handleSyncError,
   } = useCitizenSync();
 
-  // ✅ เพิ่ม state สำหรับ Register
-  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
-  const [pendingCid, setPendingCid] = useState("");
-
+  // Handle sync success
   const onSyncSuccessHandler = () => {
     handleSyncSuccess();
     onSyncSuccess?.();
@@ -45,8 +44,9 @@ const NoSyncedComponent: React.FC<NoSyncedComponentProps> = ({
 
   return (
     <>
-      <div className={`flex flex-col items-center sm:items-start justify-center sm:justify-start min-h-[400px] ${className}`}>
-        <div className="w-full text-center sm:text-start">
+      <div className={`flex flex-col items-center sm:items-start justify-center sm:justify-start min-h-[400px]  ${className}`}>
+        <div className="w-full text-center sm:text-start ">
+          
           <p className="text-gray-600 mb-6 leading-relaxed font-bold">
             {description}
           </p>
@@ -62,34 +62,22 @@ const NoSyncedComponent: React.FC<NoSyncedComponentProps> = ({
                 onClick={openSyncModal}
                 className="flex flex-row justify-center items-center py-4 gap-2 bg-white rounded-[45px] w-full hover:bg-gray-50 transition-colors"
               >
-                <span className="font-bold">คลิก</span>
-                ยืนยันเลขบัตรประชาชนเพื่อดูผลตรวจสุขภาพ
+                {/* <LiaIdCardSolid size={25} className="text-[#4385EF]" /> */}
+                <span className="font-bold">คลิก</span>ยืนยันเลขบัตรประชาชนเพื่อดูผลตรวจสุขภาพ 
+                
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ✅ Citizen ID Sync Modal */}
+      {/* Citizen ID Sync Modal */}
       <CitizenIdSync
         isOpen={isSyncModalOpen}
         onClose={closeSyncModal}
         onSyncSuccess={onSyncSuccessHandler}
         onSyncError={handleSyncError}
         showTermsCheckbox={showTermsCheckbox}
-        onNeedRegister={(cid) => {
-          // ✅ ไม่พบ HN → ปิด Sync → เปิด Register
-          closeSyncModal();
-          setPendingCid(cid);
-          setIsRegisterOpen(true);
-        }}
-      />
-
-      {/* ✅ Register Modal */}
-      <Register
-        isOpen={isRegisterOpen}
-        onClose={() => setIsRegisterOpen(false)}
-        defaultCitizenId={pendingCid}
       />
     </>
   );
