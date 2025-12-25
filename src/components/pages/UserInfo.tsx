@@ -531,7 +531,7 @@ export default function UserInfoComponent() {
                       ) : (
 
                         <p>
-                          เชื่อมต่อข้อมูล
+                          ถัดไป
                         </p>
                       )}
                     </Button>

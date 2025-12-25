@@ -1,12 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import Input from "@/components/form/input/InputField";
-import Label from "@/components/form/Label";
-import Button from "@/components/ui/button/Button";
 import { Modal } from "@/components/ui/modal";
-import Checkbox from "../form/input/Checkbox";
-import Link from "next/link";
 import { toast } from "react-toastify";
 
 interface RegisterProps {
@@ -41,22 +36,19 @@ export default function Register(props: RegisterProps) {
     onClose,
     defaultCitizenId,
     onRegisterSuccess,
-    showTermsCheckbox = true,
     shopId,
     apiUrl,
   } = props;
 
   // step state
-  // 0 = citizen id input
-  // 1 = hospital registration form
-  // 2 = success page
+  // 0 = hospital registration form
+  // 1 = success page
   const [pageIndex, setPageIndex] = useState(0);
 
-  // citizen id step state
+  // citizen id from parent
   const [cid, setCid] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isAccept, setIsAccept] = useState(false);
 
   // hospital registration form state
   const [formData, setFormData] = useState({
@@ -76,7 +68,7 @@ export default function Register(props: RegisterProps) {
   const getApiUrl = () => apiUrl || process.env.NEXT_PUBLIC_API_URL;
   const getShopId = () => shopId || parseInt(process.env.NEXT_PUBLIC_SHOP_ID || "950");
 
-  // Prefill cid when open
+  // Set cid from props when modal opens
   useEffect(() => {
     if (!isOpen) return;
 
@@ -84,7 +76,6 @@ export default function Register(props: RegisterProps) {
     setError('');
     setLoading(false);
     setPageIndex(0);
-    setIsAccept(false);
 
     // reset form
     setFormData({
@@ -103,27 +94,6 @@ export default function Register(props: RegisterProps) {
 
   const handleClose = () => {
     onClose();
-  };
-
-  const handleCitizenIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, '');
-    setCid(value);
-  };
-
-  // กดถัดไป -> ไปหน้า form
-  const handleNextToRegisterForm = async () => {
-    if (!cid.trim()) {
-      setError("กรุณากรอกหมายเลขบัตรประชาชน");
-      return;
-    }
-
-    if (cid.length !== 13) {
-      setError("หมายเลขบัตรประชาชนต้องมี 13 หลัก");
-      return;
-    }
-
-    setError('');
-    setPageIndex(1);
   };
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -177,7 +147,7 @@ export default function Register(props: RegisterProps) {
 
       if (data.status) {
         // สำเร็จ -> ไปหน้า Success
-        setPageIndex(2);
+        setPageIndex(1);
         toast.success("ลงทะเบียนสำเร็จ");
       } else {
         setError(data.message || "เกิดข้อผิดพลาดในการลงทะเบียน");
@@ -223,82 +193,8 @@ export default function Register(props: RegisterProps) {
     <Modal isOpen={isOpen} onClose={handleClose} className="max-w-[900px] m-4 z-99">
       <div className="relative w-full max-w-[900px] overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-8">
         
-        {/* STEP 0: Citizen ID */}
+        {/* Hospital Registration Form */}
         {pageIndex === 0 && (
-          <>
-            <div className="px-2 pr-6">
-              <h4 className="mb-2 text-xl font-semibold text-gray-800 dark:text-white/90">
-                ลงทะเบียน/กรอกข้อมูลก่อนเชื่อมต่อ
-              </h4>
-            </div>
-
-            <form
-              className="flex flex-col"
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleNextToRegisterForm();
-              }}
-            >
-              <div className="custom-scrollbar max-h-[450px] overflow-y-auto px-2 pb-3 space-y-8">
-                <div className="grid grid-cols-1 gap-4 lg:grid-cols-1">
-                  <div>
-                    <Label>หมายเลขบัตรประชาชน</Label>
-                    <Input
-                      key={cid}
-                      disabled={loading}
-                      type="text"
-                      defaultValue={cid}
-                      onChange={handleCitizenIdChange}
-                      placeholder="x-xxxx-xxxx-xx-x"
-                      maxLength={13}
-                    />
-                  </div>
-
-                  {error && <p className="text-sm text-red-500 dark:text-red-400">{error}</p>}
-                </div>
-              </div>
-
-              {showTermsCheckbox && (
-                <div className="flex items-start gap-3 px-2">
-                  <Checkbox
-                    className="mt-1 w-5 h-5"
-                    checked={isAccept}
-                    onChange={() => setIsAccept(!isAccept)}
-                  />
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    การสร้างบัญชีแสดงว่าคุณยอมรับ{' '}
-                    <span className="text-brand-500 hover:text-brand-600 dark:text-white/90 font-medium">
-                      <Link target="_blank" href="">
-                        ข้อตกลงการใช้บริการ
-                      </Link>
-                    </span>{' '}
-                    และ{' '}
-                    <span className="text-brand-500 hover:text-brand-600 dark:text-white/90 font-medium">
-                      <Link target="_blank" href="">
-                        นโยบายความเป็นส่วนตัว
-                      </Link>
-                    </span>{' '}
-                    ของเรา
-                  </p>
-                </div>
-              )}
-
-              <div className="flex items-center justify-center w-full gap-3 px-2 mt-6">
-                <Button
-                  disabled={(!isAccept && showTermsCheckbox) || loading || !cid.trim()}
-                  onClick={handleNextToRegisterForm}
-                  className="flex justify-center"
-                  size="sm"
-                >
-                  {loading ? <LoadingSpinner /> : "ถัดไป"}
-                </Button>
-              </div>
-            </form>
-          </>
-        )}
-
-        {/* STEP 1: Hospital Registration Form */}
-        {pageIndex === 1 && (
           <div className="bg-white rounded-2xl p-2 md:p-4">
             <h1 className="text-xl md:text-2xl font-semibold text-gray-800 mb-8">
               เพิ่มข้อมูลเพื่อลงทะเบียนใช้บริการสถานพยาบาล
@@ -513,8 +409,8 @@ export default function Register(props: RegisterProps) {
           </div>
         )}
 
-        {/* STEP 2: Success Page */}
-        {pageIndex === 2 && (
+        {/* Success Page */}
+        {pageIndex === 1 && (
           <div className="flex flex-col items-center justify-center py-12 px-4">
             {/* Success Icon */}
             <div className="w-32 h-32 mb-6 relative">
