@@ -34,13 +34,35 @@ const NoSyncedComponent: React.FC<NoSyncedComponentProps> = ({
     handleSyncError,
   } = useCitizenSync();
 
-  // ✅ เพิ่ม state สำหรับ Register
+  // State สำหรับ Register Modal
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [pendingCid, setPendingCid] = useState("");
 
+  // Handler เมื่อ Sync สำเร็จ
   const onSyncSuccessHandler = () => {
     handleSyncSuccess();
     onSyncSuccess?.();
+  };
+
+  // Handler เมื่อต้องการไป Register (ไม่มี HN)
+  const handleNeedRegister = (cid: string) => {
+    closeSyncModal();
+    setPendingCid(cid);
+    setIsRegisterOpen(true);
+  };
+
+  // Handler เมื่อ Register สำเร็จ -> กลับไปทำ Sync/OTP
+  const handleRegisterSuccess = (cid: string) => {
+    setIsRegisterOpen(false);
+    setPendingCid(cid);
+    // เปิด CitizenIdSync อีกครั้งเพื่อทำ OTP flow
+    openSyncModal();
+  };
+
+  // Handler เมื่อปิด Register Modal
+  const handleRegisterClose = () => {
+    setIsRegisterOpen(false);
+    setPendingCid("");
   };
 
   return (
@@ -70,26 +92,23 @@ const NoSyncedComponent: React.FC<NoSyncedComponentProps> = ({
         </div>
       </div>
 
-      {/* ✅ Citizen ID Sync Modal */}
+      {/* Citizen ID Sync Modal */}
       <CitizenIdSync
         isOpen={isSyncModalOpen}
         onClose={closeSyncModal}
         onSyncSuccess={onSyncSuccessHandler}
         onSyncError={handleSyncError}
         showTermsCheckbox={showTermsCheckbox}
-        onNeedRegister={(cid) => {
-          // ✅ ไม่พบ HN → ปิด Sync → เปิด Register
-          closeSyncModal();
-          setPendingCid(cid);
-          setIsRegisterOpen(true);
-        }}
+        onNeedRegister={handleNeedRegister}
       />
 
-      {/* ✅ Register Modal */}
+      {/* Register Modal */}
       <Register
         isOpen={isRegisterOpen}
-        onClose={() => setIsRegisterOpen(false)}
+        onClose={handleRegisterClose}
         defaultCitizenId={pendingCid}
+        onRegisterSuccess={handleRegisterSuccess}
+        showTermsCheckbox={showTermsCheckbox}
       />
     </>
   );

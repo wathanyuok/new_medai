@@ -14,7 +14,7 @@ interface CitizenIdSyncProps {
   onClose: () => void;
   onSyncSuccess?: () => void;
   onSyncError?: (error: string) => void;
-  onNeedRegister?: (cid: string) => void; // ✅ เพิ่ม
+  onNeedRegister?: (cid: string) => void;
   showTermsCheckbox?: boolean;
   shopId?: number;
   apiUrl?: string;
@@ -39,6 +39,9 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
   apiUrl
 }) => {
   // States
+  // 0 = citizen id input
+  // 1 = OTP verification
+  // 2 = success page
   const [cid, setCid] = useState('');
   const [otp, setOtp] = useState('');
   const [blindPhone, setBlindPhone] = useState('');
@@ -75,6 +78,11 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
       return;
     }
 
+    if (cid.length !== 13) {
+      setError("หมายเลขบัตรประชาชนต้องมี 13 หลัก");
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -106,18 +114,13 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
       const json: SyncResponse = await response.json();
 
       if (json.status) {
-        // Format phone number to hide middle digits
+        // มี HN แล้ว -> ไปหน้า OTP
         const formattedTel = json.co_tel?.replace(/(\d{3})\d{3}(\d{4})/, 'xxx-xxx-$2') || '';
         setBlindPhone(formattedTel);
         setPageIndex(1);
         setError("");
       } else {
-        /**
-         * ✅ Requirement: ถ้าไม่มี HN ให้ไปกรอกฟอร์มก่อน
-         * ตอนนี้ backend ส่ง status=false มา
-         * เราจะถือว่าเป็นเคส "ต้องไป Register" ตาม requirement
-         * (ถ้าจริง ๆ status=false มีหลายสาเหตุ แนะนำให้ backend ส่ง reason/code มา แล้วค่อยแยก)
-         */
+        // ไม่มี HN -> ไปหน้า Register
         onNeedRegister?.(cid);
         handleClose();
         return;
@@ -166,7 +169,6 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
 
       const data: SyncResponse = await response.json();
 
-      // ✅ แก้ typo: ลบ "ปด" ออกแล้ว
       if (data.status) {
         // Update localStorage
         if (data.data?.access_token) {
@@ -175,13 +177,11 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
         localStorage.setItem("is_online_data_sync", "true");
 
         setError("");
-        handleClose();
-        onSyncSuccess?.();
-
+        
+        // ไปหน้า Success แทนการปิด modal ทันที
+        setPageIndex(2);
+        
         toast.success("เชื่อมต่อข้อมูลสำเร็จ");
-
-        // Reload page to reflect changes
-        window.location.reload();
       } else {
         setError("รหัส OTP ไม่ถูกต้องหรือหมดอายุแล้ว");
       }
@@ -194,15 +194,23 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
     }
   };
 
+  // Handle success close - reload page
+  const handleSuccessClose = () => {
+    onSyncSuccess?.();
+    handleClose();
+    // Reload page to reflect changes
+    window.location.reload();
+  };
+
   // Format citizen ID input
   const handleCitizenIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+    const value = e.target.value.replace(/\D/g, '');
     setCid(value);
   };
 
   // Format OTP input
   const handleOtpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+    const value = e.target.value.replace(/\D/g, '');
     if (value.length <= 6) {
       setOtp(value);
     }
@@ -235,7 +243,7 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
           </h4>
         </div>
 
-        {/* Step 1: Citizen ID Input */}
+        {/* Step 0: Citizen ID Input */}
         {pageIndex === 0 && (
           <>
             <form
@@ -253,9 +261,10 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
                       <Input
                         disabled={loading}
                         type="text"
+                        value={cid}
                         onChange={handleCitizenIdChange}
                         placeholder="x-xxxx-xxxx-xx-x"
-                        max="13"
+                        maxLength={13}
                       />
                     </div>
                     {error && <p className="text-sm text-red-500 dark:text-red-400">{error}</p>}
@@ -302,7 +311,7 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
           </>
         )}
 
-        {/* Step 2: OTP Verification */}
+        {/* Step 1: OTP Verification */}
         {pageIndex === 1 && (
           <>
             <form
@@ -366,6 +375,47 @@ const CitizenIdSync: React.FC<CitizenIdSyncProps> = ({
               </Button>
             </div>
           </>
+        )}
+
+        {/* Step 2: Success Page */}
+        {pageIndex === 2 && (
+          <div className="flex flex-col items-center justify-center py-12 px-4">
+            {/* Success Icon */}
+            <div className="w-32 h-32 mb-6 relative">
+              <div className="absolute inset-0 bg-pink-100 rounded-full"></div>
+              <div className="absolute inset-2 bg-pink-200 rounded-full flex items-center justify-center">
+                <svg
+                  className="w-16 h-16 text-pink-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={3}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </div>
+            </div>
+
+            {/* Success Text */}
+            <h2 className="text-2xl font-semibold text-gray-800 mb-2">
+              เชื่อมต่อข้อมูลสำเร็จ
+            </h2>
+            <p className="text-gray-500 text-center mb-8">
+              ข้อมูลของคุณถูกเชื่อมต่อกับสถานพยาบาลเรียบร้อยแล้ว
+            </p>
+
+            {/* Close Button */}
+            <button
+              onClick={handleSuccessClose}
+              className="px-8 py-3 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2"
+            >
+              ดำเนินการต่อ
+            </button>
+          </div>
         )}
       </div>
     </Modal>
