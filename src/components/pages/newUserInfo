@@ -18,6 +18,7 @@ import Link from "next/link";
 import liff from "@line/liff";
 import { useRouter } from "next/navigation";
 import { toast, ToastContainer } from "react-toastify";
+import Register from "@/components/pages/Register";
 
 
 
@@ -40,7 +41,6 @@ export interface Balance {
 export default function UserInfoComponent() {
   const [isLogin, setIsLogin] = useState(true);
   const { userDataProfile, setUserDataProfile } = useProfile();
-  // const [profileUser1, setProfileUser1] = useState("");
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [isSynced, setIsSynced] = useState(true);
@@ -56,7 +56,10 @@ export default function UserInfoComponent() {
   const [phone, setPhone] = useState('');
   const [blindPhone, setBindPhone] = useState('');
   const [error, setError] = useState('');
-  // const [openSynceModal, setOpenSynceModal ] = useState(false);
+
+  // ✅ เพิ่ม state สำหรับ Register Modal
+  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const [pendingCid, setPendingCid] = useState('');
 
   const router = useRouter();
   const fetchData = React.useCallback(async () => {
@@ -85,15 +88,14 @@ export default function UserInfoComponent() {
       .then(() => {
         console.log("LIFF initialized successfully.");
         try {
-          // const liffId = `${process.env.NEXT_PUBLIC_LIFF_KEY || '2006526342-OEYmV1wW'}`;
           if (!liffId) {
             throw new Error(
               "LIFF ID is not defined. Please set NEXT_PUBLIC_LIFF_KEY in your environment variables."
             );
           }
-          localStorage.setItem("syncFromProfile", "true"); // Replace with actual server token
+          localStorage.setItem("syncFromProfile", "true");
           liff.login();
-          const token = "user_token_from_server"; // Replace with actual server token
+          const token = "user_token_from_server";
           document.cookie = `token=${token}; path=/; Secure; HttpOnly; SameSite=Strict;`;
         } catch (err) {
           if (err instanceof Error) {
@@ -139,23 +141,27 @@ export default function UserInfoComponent() {
       body: JSON.stringify({ co_citizen_id: cid, co_email: email, co_tel: phone_number }),
     });
 
-    // Optional: handle response
     if (!res.ok) {
       throw new Error(`Request failed with status ${res.status}`);
     }
 
     const json = await res.json();
     if (json.status == true) {
+      // ✅ มี HN แล้ว -> ไปหน้า OTP
       const formattedTel = json.co_tel!.replace(/(\d{3})\d{3}(\d{4})/, 'xxx-xxx-$2');
       setBindPhone(formattedTel)
       setPhone(json.co_tel)
       setPageIndex(1)
       setError("")
     } else if (json.status == false) {
-      setError("เลขบัตรประชาชนนี้อาจถูกเชื่อมต่อแล้ว กรุณาลองเข้าสู่ระบบใหม่ หรือติดต่อเจ้าหน้าที่")
+      // ✅ ไม่มี HN -> เปิด Register Modal
+      setPendingCid(cid);
+      closeModal();
+      setIsRegisterOpen(true);
     }
     setLoading(false)
   }
+
   const handleSynceUserSubmit = async () => {
     setLoading(true)
     const token = localStorage.getItem("token");
@@ -168,7 +174,6 @@ export default function UserInfoComponent() {
       body: JSON.stringify({ cid: cid, otp: otp, shop_id: parseInt(process.env.NEXT_PUBLIC_SHOP_ID || "950") }),
     });
 
-    // Optional: handle response
     if (!res.ok) {
       throw new Error(`Request failed with status ${res.status}`);
     }
@@ -179,15 +184,33 @@ export default function UserInfoComponent() {
       localStorage.setItem("token", data.data.access_token);
       localStorage.setItem("is_online_data_sync", "true")
       setError("")
-      window.location.reload()
+      // ✅ ไปหน้า Success
+      setPageIndex(2)
+      toast.success("เชื่อมต่อข้อมูลสำเร็จ")
     } else if (data.status === false) {
       setError("รหัส OTP ไม่ถูกต้องหรือหมดอายุแล้ว")
       toast.warning('รหัส OTP ไม่ถูกต้อง หรือ หรือไม่พบหมายเลขบัตรนี้ในระบบ\nโปรดติดต่อเจ้าหน้าที่')
       setLoading(false)
     }
   }
+
+  // ✅ Handler หลัง Register สำเร็จ -> กลับมาทำ Sync/OTP
+  const handleRegisterSuccess = (registeredCid: string) => {
+    setIsRegisterOpen(false);
+    setCid(registeredCid);
+    setPendingCid(registeredCid);
+    // เปิด modal เชื่อมต่อใหม่เพื่อทำ OTP
+    openModal();
+  };
+
+  // ✅ Handler ปิด Success แล้ว reload
+  const handleSuccessClose = () => {
+    closeModal();
+    setPageIndex(0);
+    window.location.reload();
+  };
+
   const handleUnsyncUser = async () => {
-    // setLoading(true);
     setPageIndex(0)
     const token = localStorage.getItem("token");
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/onlineunsync`, {
@@ -196,10 +219,8 @@ export default function UserInfoComponent() {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      // body: JSON.stringify({ co_citizen_id: cid, otp: otp }),
     });
 
-    // Optional: handle response
     if (!res.ok) {
       throw new Error(`Request failed with status ${res.status}`);
     }
@@ -262,7 +283,7 @@ export default function UserInfoComponent() {
                               } else if (isDataSync == false) {
                                 openModal()
                               }
-                            }} // toggle state
+                            }}
                           />
                           <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:bg-green-500 relative after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
                           <span className={`ml-3 text-sm font-medium ${isDataSync ? 'text-green-700' : 'text-gray-500'}`}>
@@ -275,11 +296,6 @@ export default function UserInfoComponent() {
 
                       </div>
                     </>
-
-                    {/* {isDataSync == false &&
-                      <span className="text-gray-800 flex row items-center justify-end sm:justify-start w-6/12 break-words">
-                        <span onClick={handleLoginLine} className="text-sm cursor-pointer bg-white p-2 rounded-md text-green-600">เชื่อมต่อ +</span>
-                      </span>} */}
 
                   </div>
                   {isDataSync == false && (
@@ -294,11 +310,9 @@ export default function UserInfoComponent() {
                           <button
                             onClick={() => {
                               openModal()
-                              // console.log(isOpen)
                             }}
                             className="flex flex-row justify-center items-center p-4 gap-2 bg-white rounded-[45px] w-full"
                           >
-                            {/* <LiaIdCardSolid size={25} className="text-[#4385EF]" /> */}
                             <span className="font-bold">คลิก</span> ยืนยันเลขบัตรประชาชนเพื่อดูผลตรวจสุขภาพ
                           </button>
                         </div>
@@ -331,26 +345,8 @@ export default function UserInfoComponent() {
                     </>
                   )}
 
-                  {/* {isSyncLine == false && <button onClick={handleLoginLine} className="w-full inline-flex items-center justify-center gap-3 py-1.5 px-7 text-[14px] .font-bold text-white transition bg-[#06C755] hover:bg-[#06C755]/90 active:bg-[#06C755]/70 rounded-lg">
-                    <Image
-                      width={32}
-                      height={32}
-                      src="/images/logo/line_64.png"
-                      alt="LINE"
-                    />
-                    เข้าสู่ระบบด้วย LINE
-                  </button>} */}
-
                 </div>
 
-
-                {/* <button
-                onClick={openModal}
-                className="mt-2 sm:mt-0 flex items-center gap-1 bg-gray-100 hover:bg-gray-100 text-sm text-gray-800 px-3 py-1.5 rounded-full transition"
-              >
-                <TbPencilMinus />
-                <span className="font-medium">แก้ไข</span>
-              </button> */}
               </div>
 
               {isSynced == true && <>
@@ -365,7 +361,6 @@ export default function UserInfoComponent() {
                     {userDataProfile ? (
                       <Image
                         src={"/images/user/owner.jpg"}
-                        // src={userDataProfile.ctm_image || "/images/user/owner.jpg"}
                         alt="User profile"
                         width={80}
                         height={80}
@@ -458,55 +453,43 @@ export default function UserInfoComponent() {
             </div>
 
           </div>
-          {/* {isSynced == false && <>
-            <NoSyncedComponent />
-            <div className="w-full">
-              <span className="flex justify-center">
-                หรือ
-              </span>
-            </div>
-            <div className="flex justify-center py-5">
-              <button onClick={() => {
-                openModal()
-                // console.log(isOpen)
-              }} className="text-black flex flex-row justify-center items-center p-4 gap-2  bg-white rounded-[45px]">
-                <LiaIdCardSolid size={25} className="text-red-300" />
-                เชื่อมต่อข้อมูลกับคลินิกด้วยเลขบัตรประชาชน
-              </button>
-            </div>
 
-          </>} */}
-
-
-
+          {/* ✅ Modal เชื่อมต่อข้อมูล */}
           <Modal isOpen={isOpen} onClose={() => {
             closeModal()
             setPageIndex(0)
             setError('')
             setIsAccept(false)
+            setCid('')
+            setOtp('')
           }} className="max-w-[700px] m-4 z-99">
             <div className="relative w-full max-w-[700px] overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-8">
               <div className="px-2 pr-6">
                 <h4 className="mb-2 text-xl font-semibold text-gray-800 dark:text-white/90">
                   เชื่อมต่อข้อมูลกับสถานพยาบาล
                 </h4>
-                {/* <p className="mb-6 text-sm text-gray-500 dark:text-[#4385EF]">
-                  เชื่อมต่อข้อมูลกับคลินิกเพื่อดูข้อมูลและบริการ
-                </p> */}
               </div>
+
+              {/* Step 0: กรอกเลขบัตรประชาชน */}
               {pageIndex == 0 &&
                 <>
                   <form className="flex flex-col">
                     <div className="custom-scrollbar max-h-[450px] overflow-y-auto px-2 pb-3 space-y-8">
-                      {/* 🧍‍♀️ ข้อมูลส่วนตัว */}
                       <div>
-                        {/* <h5 className="mb-4 text-base font-medium text-gray-800 dark:text-white/90">
-                      หมายเลขบัตรประชาชน
-                    </h5> */}
                         <div className="grid grid-cols-1 gap-4 lg:grid-cols-1">
                           <div>
                             <Label>หมายเลขบัตรประชาชน</Label>
-                            <Input disabled={loading} type="text" onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCid(e.target.value)} placeholder="x-xxxx-xxxx-xx-x" />
+                            <Input 
+                              disabled={loading} 
+                              type="text" 
+                              value={cid}
+                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                const value = e.target.value.replace(/\D/g, '');
+                                setCid(value);
+                              }} 
+                              placeholder="x-xxxx-xxxx-xx-x"
+                              maxLength={13}
+                            />
                           </div>
                           {error && <p className="text-sm text-red-500 dark:text-red-400">{error}</p>}
                         </div>
@@ -527,12 +510,8 @@ export default function UserInfoComponent() {
                       </p>
                     </div>
 
-                    {/* ปุ่ม */}
                   </form>
                   <div className="flex items-center justify-center w-full gap-3 px-2 mt-6">
-                    {/* <Button size="sm" variant="outline" onClick={closeModal}>
-                    ยกเลิก
-                  </Button> */}
                     <Button disabled={!isAccept || loading || cid == ""} onClick={handleSynceUser} className="flex justify-center" size="sm" >
                       {loading ? (
                         <div className="flex justify-center items-center gap-2">
@@ -552,7 +531,7 @@ export default function UserInfoComponent() {
                       ) : (
 
                         <p>
-                          เชื่อมต่อข้อมูล
+                          ถัดไป
                         </p>
                       )}
                     </Button>
@@ -560,17 +539,18 @@ export default function UserInfoComponent() {
                   </div>
                 </>
               }
+
+              {/* Step 1: กรอก OTP */}
               {pageIndex == 1 &&
                 <>
                   <form
                     className="flex flex-col"
                     onSubmit={(e) => {
-                      e.preventDefault(); // Prevent form submission
-                      handleSynceUserSubmit(); // Call your verification function
+                      e.preventDefault();
+                      handleSynceUserSubmit();
                     }}
                   >
                     <div className="custom-scrollbar max-h-[450px] overflow-y-auto px-2 pb-3 space-y-8">
-                      {/* 🧍‍♀️ ข้อมูลส่วนตัว */}
                       <div className="grid grid-cols-1 gap-4 lg:grid-cols-1">
                         <p className="text-md flex text-center justify-center text-gray-500 dark:text-gray-400">
                           หมายเลขบัตรประชาชนที่ใช้เชื่อมต่อ
@@ -602,11 +582,16 @@ export default function UserInfoComponent() {
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') {
                                 e.preventDefault();
-                                handleSynceUserSubmit(); // Now this will work properly
+                                handleSynceUserSubmit();
                               }
                             }}
                           />
                         </div>
+                        {error && (
+                          <p className="text-sm text-red-500 dark:text-red-400 text-center">
+                            {error}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </form>
@@ -615,7 +600,7 @@ export default function UserInfoComponent() {
                       onClick={() => { handleSynceUserSubmit() }}
                       className="flex justify-center"
                       size="sm"
-                    // type="button" // Explicitly set type to button to prevent form submission
+                      disabled={loading || otp.length !== 6}
                     >
                       {loading ? (
                         <div className="flex justify-center items-center gap-2">
@@ -640,9 +625,62 @@ export default function UserInfoComponent() {
                 </>
               }
 
+              {/* Step 2: Success */}
+              {pageIndex == 2 && (
+                <div className="flex flex-col items-center justify-center py-12 px-4">
+                  {/* Success Icon */}
+                  <div className="w-32 h-32 mb-6 relative">
+                    <div className="absolute inset-0 bg-pink-100 rounded-full"></div>
+                    <div className="absolute inset-2 bg-pink-200 rounded-full flex items-center justify-center">
+                      <svg
+                        className="w-16 h-16 text-pink-500"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={3}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+
+                  {/* Success Text */}
+                  <h2 className="text-2xl font-semibold text-gray-800 mb-2">
+                    เชื่อมต่อข้อมูลสำเร็จ
+                  </h2>
+                  <p className="text-gray-500 text-center mb-8">
+                    ข้อมูลของคุณถูกเชื่อมต่อกับสถานพยาบาลเรียบร้อยแล้ว
+                  </p>
+
+                  {/* Close Button */}
+                  <button
+                    onClick={handleSuccessClose}
+                    className="px-8 py-3 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2"
+                  >
+                    ดำเนินการต่อ
+                  </button>
+                </div>
+              )}
+
 
             </div>
           </Modal>
+
+          {/* ✅ Register Modal - เปิดเมื่อไม่มี HN */}
+          <Register
+            isOpen={isRegisterOpen}
+            onClose={() => {
+              setIsRegisterOpen(false);
+              setPendingCid('');
+            }}
+            defaultCitizenId={pendingCid}
+            onRegisterSuccess={handleRegisterSuccess}
+            showTermsCheckbox={false}
+          />
 
           {/* ยกเลิกการเชื่อมต่อข้อมูลกับคลินิก */}
           <Modal isOpen={isUnsyncDataModal} onClose={() => {
@@ -660,7 +698,6 @@ export default function UserInfoComponent() {
                 <>
                   <form className="flex flex-col">
                     <div className="custom-scrollbar max-h-[450px] overflow-y-auto px-2 pb-3 space-y-8">
-                      {/* 🧍‍♀️ ข้อมูลส่วนตัว */}
                       <div>
                         <h5 className="text-base font-medium text-gray-800 dark:text-white/90">
                           คุณต้องการยกเลิกการเชื่อมต่อข้อมูลกับคลินิกใช่หรือไม่
