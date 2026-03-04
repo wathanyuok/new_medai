@@ -81,7 +81,7 @@ const AddressDropdown: React.FC<AddressDropdownProps> = ({
   const [suggestions, setSuggestions] = useState<AddressItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const debounceRef = useRef<NodeJS.Timeout>();
+  const debounceRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
