@@ -1,0 +1,459 @@
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import { Modal } from "@/components/ui/modal";
+import { toast } from "react-toastify";
+
+interface RegisterProps {
+  isOpen: boolean;
+  onClose: () => void;
+  defaultCitizenId?: string;
+  onRegisterSuccess?: (cid: string) => void;
+  onSyncSuccess?: () => void;
+  onSyncError?: (error: string) => void;
+  showTermsCheckbox?: boolean;
+  shopId?: number;
+  apiUrl?: string;
+}
+
+const provinces = [
+  'กรุงเทพมหานคร','กระบี่','กาญจนบุรี','กาฬสินธุ์','กำแพงเพชร','ขอนแก่น','จันทบุรี','ฉะเชิงเทรา','ชลบุรี',
+  'ชัยนาท','ชัยภูมิ','ชุมพร','เชียงราย','เชียงใหม่','ตรัง','ตราด','ตาก','นครนายก','นครปฐม','นครพนม',
+  'นครราชสีมา','นครศรีธรรมราช','นครสวรรค์','นนทบุรี','นราธิวาส','น่าน','บึงกาฬ','บุรีรัมย์','ปทุมธานี',
+  'ประจวบคีรีขันธ์','ปราจีนบุรี','ปัตตานี','พระนครศรีอยุธยา','พังงา','พัทลุง','พิจิตร','พิษณุโลก',
+  'เพชรบุรี','เพชรบูรณ์','แพร่','พะเยา','ภูเก็ต','มหาสารคาม','มุกดาหาร','แม่ฮ่องสอน','ยโสธร','ยะลา',
+  'ร้อยเอ็ด','ระนอง','ระยอง','ราชบุรี','ลพบุรี','ลำปาง','ลำพูน','เลย','ศรีสะเกษ','สกลนคร','สงขลา',
+  'สตูล','สมุทรปราการ','สมุทรสงคราม','สมุทรสาคร','สระแก้ว','สระบุรี','สิงห์บุรี','สุโขทัย','สุพรรณบุรี',
+  'สุราษฎร์ธานี','สุรินทร์','หนองคาย','หนองบัวลำภู','อ่างทอง','อุดรธานี','อุทัยธานี','อุตรดิตถ์',
+  'อุบลราชธานี','อำนาจเจริญ',
+];
+
+const prefixes = ['นาย', 'นาง', 'นางสาว', 'เด็กชาย', 'เด็กหญิง'];
+
+export default function Register(props: RegisterProps) {
+  const {
+    isOpen,
+    onClose,
+    defaultCitizenId,
+    onRegisterSuccess,
+    shopId,
+    apiUrl,
+  } = props;
+
+  // step state
+  // 0 = hospital registration form
+  // 1 = success page
+  const [pageIndex, setPageIndex] = useState(0);
+
+  // citizen id from parent
+  const [cid, setCid] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // hospital registration form state
+  const [formData, setFormData] = useState({
+    prefix: '',
+    firstName: '',
+    lastName: '',
+    birthDate: '',
+    address1: '',
+    address2: '',
+    province: '',
+    district: '',
+    subDistrict: '',
+    postalCode: '',
+  });
+
+  // Get configuration values
+  const getApiUrl = () => apiUrl || process.env.NEXT_PUBLIC_API_URL;
+  const getShopId = () => shopId || parseInt(process.env.NEXT_PUBLIC_SHOP_ID || "950");
+
+  // Set cid from props when modal opens
+  useEffect(() => {
+    if (!isOpen) return;
+
+    setCid(defaultCitizenId || '');
+    setError('');
+    setLoading(false);
+    setPageIndex(0);
+
+    // reset form
+    setFormData({
+      prefix: '',
+      firstName: '',
+      lastName: '',
+      birthDate: '',
+      address1: '',
+      address2: '',
+      province: '',
+      district: '',
+      subDistrict: '',
+      postalCode: '',
+    });
+  }, [isOpen, defaultCitizenId]);
+
+  const handleClose = () => {
+    onClose();
+  };
+
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  // Submit form และเรียก API สร้าง HN
+  const handleSubmitHospitalRegistration = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("ไม่พบ token การเข้าสู่ระบบ");
+      }
+
+      // เรียก API สร้าง HN
+      const response = await fetch(`${getApiUrl()}/auth/register-hospital`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          citizen_id: cid,
+          shop_id: getShopId(),
+          prefix: formData.prefix,
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          birth_date: formData.birthDate,
+          address: formData.address1,
+          address2: formData.address2,
+          province: formData.province,
+          district: formData.district,
+          sub_district: formData.subDistrict,
+          postal_code: formData.postalCode,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.status) {
+        // สำเร็จ -> ไปหน้า Success
+        setPageIndex(1);
+        toast.success("ลงทะเบียนสำเร็จ");
+      } else {
+        setError(data.message || "เกิดข้อผิดพลาดในการลงทะเบียน");
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "เกิดข้อผิดพลาดในการลงทะเบียน";
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // กดปุ่มในหน้า Success -> เรียก callback และปิด modal
+  const handleSuccessClose = () => {
+    onRegisterSuccess?.(cid);
+    handleClose();
+  };
+
+  const LoadingSpinner = () => (
+    <div className="flex justify-center items-center gap-2">
+      <svg width="40" height="20" viewBox="0 0 120 30">
+        <circle cx="30" cy="15" r="10" fill="#60A5FA">
+          <animate attributeName="cy" from="15" to="15" dur="0.6s" begin="0s" repeatCount="indefinite" values="15;5;15" keyTimes="0;0.5;1"></animate>
+        </circle>
+        <circle cx="60" cy="15" r="10" fill="#60A5FA">
+          <animate attributeName="cy" from="15" to="15" dur="0.6s" begin="0.2s" repeatCount="indefinite" values="15;5;15" keyTimes="0;0.5;1"></animate>
+        </circle>
+        <circle cx="90" cy="15" r="10" fill="#60A5FA">
+          <animate attributeName="cy" from="15" to="15" dur="0.6s" begin="0.4s" repeatCount="indefinite" values="15;5;15" keyTimes="0;0.5;1"></animate>
+        </circle>
+      </svg>
+      <span>กำลังโหลด...</span>
+    </div>
+  );
+
+  // Styles - เปลี่ยนเป็นสีดำ
+  const inputStyle = "w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-200 rounded-lg text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-all bg-white text-sm sm:text-base";
+  const selectStyle = "w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-200 rounded-lg appearance-none bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-all text-sm sm:text-base";
+  const labelRequired = "block text-sm font-medium text-gray-800 mb-1.5 sm:mb-2";
+  const labelOptional = "block text-sm font-medium text-gray-600 mb-1.5 sm:mb-2";
+
+  return (
+    <Modal isOpen={isOpen} onClose={handleClose} className="max-w-[900px] m-2 sm:m-4 z-99">
+      <div className="relative w-full max-w-[900px] max-h-[90vh] overflow-y-auto rounded-2xl sm:rounded-3xl bg-white p-3 sm:p-4 dark:bg-gray-900 lg:p-8">
+        
+        {/* Hospital Registration Form */}
+        {pageIndex === 0 && (
+          <div className="bg-white rounded-xl sm:rounded-2xl p-1 sm:p-2 md:p-4">
+            <h1 className="text-lg sm:text-xl md:text-2xl font-semibold text-gray-800 mb-4 sm:mb-6 md:mb-8 pr-8">
+              เพิ่มข้อมูลเพื่อลงทะเบียนใช้บริการสถานพยาบาล
+            </h1>
+
+            <form onSubmit={handleSubmitHospitalRegistration} className="space-y-4 sm:space-y-5">
+              {/* Row 1: คำนำหน้า */}
+              <div>
+                <label className={labelRequired}>
+                  คำนำหน้า <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <select
+                    name="prefix"
+                    value={formData.prefix}
+                    onChange={handleFormChange}
+                    required
+                    className={selectStyle}
+                  >
+                    <option value="" disabled>
+                      เลือกคำนำหน้า
+                    </option>
+                    {prefixes.map((prefix) => (
+                      <option key={prefix} value={prefix}>
+                        {prefix}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 2: ชื่อจริง, นามสกุล */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={labelRequired}>
+                    ชื่อจริงตามบัตรประชาชน <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="firstName"
+                    value={formData.firstName}
+                    onChange={handleFormChange}
+                    placeholder="ชื่อของคุณ"
+                    required
+                    className={inputStyle}
+                  />
+                </div>
+
+                <div>
+                  <label className={labelRequired}>
+                    นามสกุลตามบัตรประชาชน <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="lastName"
+                    value={formData.lastName}
+                    onChange={handleFormChange}
+                    placeholder="นามสกุล"
+                    required
+                    className={inputStyle}
+                  />
+                </div>
+              </div>
+
+              {/* วัน เดือน ปีเกิด */}
+              <div>
+                <label className={labelRequired}>
+                  วัน เดือน ปีเกิด (ค.ศ.) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  name="birthDate"
+                  value={formData.birthDate}
+                  onChange={handleFormChange}
+                  onClick={(e) => e.currentTarget.showPicker()}
+                  required
+                  max={new Date().toISOString().split('T')[0]}
+                  className={`${inputStyle} cursor-pointer`}
+                />
+              </div>
+
+              {/* ที่อยู่ */}
+              <div>
+                <label className={labelRequired}>
+                  ที่อยู่ <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="address1"
+                  value={formData.address1}
+                  onChange={handleFormChange}
+                  placeholder="กรอกที่อยู่ของคุณ"
+                  required
+                  className={inputStyle}
+                />
+              </div>
+
+              {/* ที่อยู่ (บรรทัดที่ 2) */}
+              <div>
+                <label className={labelOptional}>
+                  ที่อยู่ (บรรทัดที่ 2) - ไม่บังคับ
+                </label>
+                <input
+                  type="text"
+                  name="address2"
+                  value={formData.address2}
+                  onChange={handleFormChange}
+                  placeholder="ที่อยู่เพิ่มเติม (ถ้ามี)"
+                  className={inputStyle}
+                />
+              </div>
+
+              {/* จังหวัด */}
+              <div>
+                <label className={labelRequired}>
+                  จังหวัด <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <select
+                    name="province"
+                    value={formData.province}
+                    onChange={handleFormChange}
+                    required
+                    className={selectStyle}
+                  >
+                    <option value="" disabled>
+                      เลือกจังหวัด
+                    </option>
+                    {provinces.map((province) => (
+                      <option key={province} value={province}>
+                        {province}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              {/* เขต/อำเภอ, แขวง/ตำบล */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={labelRequired}>
+                    เขต/อำเภอ <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="district"
+                    value={formData.district}
+                    onChange={handleFormChange}
+                    placeholder="เช่น บางใหญ่"
+                    required
+                    className={inputStyle}
+                  />
+                </div>
+
+                <div>
+                  <label className={labelRequired}>
+                    แขวง/ตำบล <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="subDistrict"
+                    value={formData.subDistrict}
+                    onChange={handleFormChange}
+                    placeholder="เช่น บางใหญ่"
+                    required
+                    className={inputStyle}
+                  />
+                </div>
+              </div>
+
+              {/* รหัสไปรษณีย์ */}
+              <div>
+                <label className={labelRequired}>
+                  รหัสไปรษณีย์ <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="postalCode"
+                  value={formData.postalCode}
+                  onChange={handleFormChange}
+                  placeholder="เช่น 11140"
+                  required
+                  maxLength={5}
+                  pattern="[0-9]{5}"
+                  inputMode="numeric"
+                  className={`${inputStyle} sm:max-w-[200px]`}
+                />
+              </div>
+
+              {/* Error Message */}
+              {error && (
+                <p className="text-sm text-red-500 text-center py-2">{error}</p>
+              )}
+
+              {/* Submit Button */}
+              <div className="pt-4 sm:pt-6 flex justify-center">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full sm:w-auto px-6 sm:px-8 py-3 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
+                >
+                  {loading ? <LoadingSpinner /> : "ลงทะเบียนใช้บริการสถานพยาบาล"}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Success Page */}
+        {pageIndex === 1 && (
+          <div className="flex flex-col items-center justify-center py-8 sm:py-12 px-4">
+            {/* Success Icon */}
+            <div className="w-24 h-24 sm:w-32 sm:h-32 mb-4 sm:mb-6 relative">
+              <div className="absolute inset-0 bg-green-100 rounded-full"></div>
+              <div className="absolute inset-2 bg-green-200 rounded-full flex items-center justify-center">
+                <svg
+                  className="w-12 h-12 sm:w-16 sm:h-16 text-green-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={3}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </div>
+            </div>
+
+            {/* Success Text */}
+            <h2 className="text-xl sm:text-2xl font-semibold text-gray-800 mb-2">
+              ลงทะเบียนสำเร็จ
+            </h2>
+            <p className="text-gray-500 text-center mb-6 sm:mb-8 text-sm sm:text-base">
+              ข้อมูลของคุณถูกบันทึกเรียบร้อยแล้ว
+            </p>
+
+            {/* Close Button */}
+            <button
+              onClick={handleSuccessClose}
+              className="w-full sm:w-auto px-6 sm:px-8 py-3 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2 text-sm sm:text-base"
+            >
+              ดำเนินการต่อ
+            </button>
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}

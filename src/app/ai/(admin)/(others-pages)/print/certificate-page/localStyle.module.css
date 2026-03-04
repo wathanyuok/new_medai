@@ -1,0 +1,172 @@
+.contentPosition {
+  padding: 12px;
+}
+
+.buttonPrint {
+  background-color: #00ad98;
+  color: white;
+  padding: 8px;
+  border-radius: 10px 10px 10px 0px;
+}
+
+.buttonBack {
+  background-color: #d9d9d9;
+  color: white;
+  padding: 8px;
+  border-radius: 10px 10px 0px 10px;
+}
+
+.tapPosition {
+  width: 100%;
+  height: 48px;
+  display: -webkit-flex; /* Safari */
+  display: flex;
+  -webkit-align-items: center; /* Safari */
+  align-items: center;
+  -webkit-justify-content: center; /* Safari */
+  justify-content: center;
+}
+
+.colHeader {
+  background-color: #017d89;
+  color: white;
+}
+
+.colTitle {
+  height: 24px;
+  width: 100%;
+  display: -webkit-flex; /* Safari */
+  display: flex;
+  -webkit-align-items: center; /* Safari */
+  align-items: center;
+  -webkit-justify-content: center; /* Safari */
+  justify-content: center;
+}
+
+.colRowLeft {
+  height: 24px;
+  display: -webkit-flex; /* Safari */
+  display: flex;
+  -webkit-align-items: center; /* Safari */
+  align-items: center;
+  -webkit-justify-content: flex-start; /* Safari */
+  justify-content: flex-start;
+}
+
+.colRowCenter {
+  height: 24px;
+  display: -webkit-flex; /* Safari */
+  display: flex;
+  -webkit-align-items: center; /* Safari */
+  align-items: center;
+  -webkit-justify-content: center; /* Safari */
+  justify-content: center;
+}
+
+.colRowRight {
+  height: 24px;
+  display: -webkit-flex; /* Safari */
+  display: flex;
+  -webkit-align-items: center; /* Safari */
+  align-items: center;
+  -webkit-justify-content: flex-end; /* Safari */
+  justify-content: flex-end;
+}
+
+.colHeaderBorder {
+  border-right: 1px solid rgb(229, 231, 235);
+}
+
+.colBorderStart {
+  width: 100%;
+  border-bottom: 1px solid rgb(229, 231, 235);
+  border-left: 1px solid rgb(229, 231, 235);
+  border-right: 1px solid rgb(229, 231, 235);
+}
+
+.colBorder {
+  width: 100%;
+  border-bottom: 1px solid rgb(229, 231, 235);
+  border-right: 1px solid rgb(229, 231, 235);
+}
+
+
+.gridCol18 {
+  display: grid;
+  grid-template-columns: repeat(18, minmax(0, 1fr));
+  /* Note: CSS Grid has limited support in older Safari versions */
+}
+
+/* Grid column spans */
+.gridColSpan1 {
+  grid-column: span 1 / span 1;
+  -webkit-grid-column: span 1 / span 1; /* WebKit */
+}
+.gridColSpan2 {
+  grid-column: span 2 / span 2;
+  -webkit-grid-column: span 2 / span 2; /* WebKit */
+}
+.gridColSpan3 {
+  grid-column: span 3 / span 3;
+  -webkit-grid-column: span 3 / span 3; /* WebKit */
+}
+.gridColSpan4 {
+  grid-column: span 4 / span 4;
+  -webkit-grid-column: span 4 / span 4; /* WebKit */
+}
+.gridColSpan5 {
+  grid-column: span 5 / span 5;
+  -webkit-grid-column: span 5 / span 5; /* WebKit */
+}
+.gridColSpan6 {
+  grid-column: span 6 / span 6;
+  -webkit-grid-column: span 6 / span 6; /* WebKit */
+}
+.gridColSpan7 {
+  grid-column: span 7 / span 7;
+  -webkit-grid-column: span 7 / span 7; /* WebKit */
+}
+.gridColSpan8 {
+  grid-column: span 8 / span 8;
+  -webkit-grid-column: span 8 / span 8; /* WebKit */
+}
+.gridColSpan9 {
+  grid-column: span 9 / span 9;
+  -webkit-grid-column: span 9 / span 9; /* WebKit */
+}
+.gridColSpan10 {
+  grid-column: span 10 / span 10;
+  -webkit-grid-column: span 10 / span 10; /* WebKit */
+}
+.gridColSpan11 {
+  grid-column: span 11 / span 11;
+  -webkit-grid-column: span 11 / span 11; /* WebKit */
+}
+.gridColSpan12 {
+  grid-column: span 12 / span 12;
+  -webkit-grid-column: span 12 / span 12; /* WebKit */
+}
+.gridColSpan13 {
+  grid-column: span 13 / span 13;
+  -webkit-grid-column: span 13 / span 13; /* WebKit */
+}
+.gridColSpan14 {
+  grid-column: span 14 / span 14;
+  -webkit-grid-column: span 14 / span 14; /* WebKit */
+}
+.gridColSpan15 {
+  grid-column: span 15 / span 15;
+  -webkit-grid-column: span 15 / span 15; /* WebKit */
+}
+.gridColSpan16 {
+  grid-column: span 16 / span 16;
+  -webkit-grid-column: span 16 / span 16; /* WebKit */
+}
+.gridColSpan17 {
+  grid-column: span 17 / span 17;
+  -webkit-grid-column: span 17 / span 17; /* WebKit */
+}
+.gridColSpan18 {
+  grid-column: span 18 / span 18;
+  -webkit-grid-column: span 18 / span 18; /* WebKit */
+}

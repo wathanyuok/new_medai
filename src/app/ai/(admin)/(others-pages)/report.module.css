@@ -1,0 +1,295 @@
+.pageLaout {
+  width: 738px;
+  /* height: 1054px; */
+  font-size: 9px;
+  background-color: white;
+}
+
+.textNormal {
+  color: #334155;
+  font-size: 9px;
+  line-height: 18px;
+}
+
+.textNormalItalic {
+  color: #334155;
+  font-size: 9px;
+  line-height: 18px;
+  font-style: italic;
+}
+
+.textNormalBold {
+  color: black;
+  font-size: 9px;
+  font-weight: bold;
+  line-height: 18px;
+}
+
+.textNormalBold16 {
+  color: black;
+  font-size: 16px;
+  font-weight: bold;
+  line-height: 18px;
+}
+
+.textNormalBold14 {
+  color: black;
+  font-size: 14px;
+  font-weight: bold;
+  line-height: 18px;
+}
+
+.borderBottom {
+  width: 100%;
+  border-bottom: 1px solid rgb(229 231 235);
+}
+
+.borderBottomDot {
+  width: 100%;
+  border-bottom: 2px dotted gray;
+}
+
+.underlineDot {
+  width: 100%;
+  border-bottom: 2px dotted gray;
+  text-decoration: none;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  display: block;
+}
+
+.underline {
+  border-bottom: 1px dotted #c03;
+  width: 100%;
+  display: block;
+}
+
+.textOverBox {
+  width: 100%;
+  text-decoration: none;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.gridCol18 {
+  display: -webkit-grid; /* Safari */
+  display: grid;
+  -webkit-grid-template-columns: repeat(18, minmax(0, 1fr)); /* Safari */
+  grid-template-columns: repeat(18, minmax(0, 1fr));
+}
+
+.gridCol24 {
+  display: -webkit-grid; /* Safari */
+  display: grid;
+  -webkit-grid-template-columns: repeat(24, minmax(0, 1fr)); /* Safari */
+  grid-template-columns: repeat(24, minmax(0, 1fr));
+}
+
+.gridColSpan1 {
+  -webkit-grid-column: span 1 / span 1; /* Safari */
+  grid-column: span 1 / span 1;
+}
+.gridColSpan2 {
+  -webkit-grid-column: span 2 / span 2; /* Safari */
+  grid-column: span 2 / span 2;
+}
+/* Add similar WebKit prefixes for other grid-column spans */
+
+.loader {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  position: relative;
+  -webkit-animation: rotate 1s linear infinite; /* Safari */
+  animation: rotate 1s linear infinite;
+}
+.loader::before,
+.loader::after {
+  content: "";
+  box-sizing: border-box;
+  position: absolute;
+  inset: 0px;
+  border-radius: 50%;
+  border: 5px solid #fff;
+  -webkit-animation: prixClipFix 2s linear infinite; /* Safari */
+  animation: prixClipFix 2s linear infinite;
+}
+.loader::after {
+  border-color: #017d89;
+  -webkit-animation: prixClipFix 2s linear infinite, rotate 0.5s linear infinite reverse; /* Safari */
+  animation: prixClipFix 2s linear infinite, rotate 0.5s linear infinite reverse;
+  inset: 6px;
+}
+
+@-webkit-keyframes rotate {
+  0% {
+    -webkit-transform: rotate(0deg); /* Safari */
+    transform: rotate(0deg);
+  }
+  100% {
+    -webkit-transform: rotate(360deg); /* Safari */
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes rotate {
+  0% {
+    -webkit-transform: rotate(0deg); /* Safari */
+    transform: rotate(0deg);
+  }
+  100% {
+    -webkit-transform: rotate(360deg); /* Safari */
+    transform: rotate(360deg);
+  }
+}
+
+@-webkit-keyframes prixClipFix {
+  0% {
+    -webkit-clip-path: polygon(50% 50%, 0 0, 0 0, 0 0, 0 0, 0 0); /* Safari */
+    clip-path: polygon(50% 50%, 0 0, 0 0, 0 0, 0 0, 0 0);
+  }
+  25% {
+    -webkit-clip-path: polygon(50% 50%, 0 0, 100% 0, 100% 0, 100% 0, 100% 0); /* Safari */
+    clip-path: polygon(50% 50%, 0 0, 100% 0, 100% 0, 100% 0, 100% 0);
+  }
+  50% {
+    -webkit-clip-path: polygon(50% 50%, 0 0, 100% 0, 100% 100%, 100% 100%, 100% 100%); /* Safari */
+    clip-path: polygon(50% 50%, 0 0, 100% 0, 100% 100%, 100% 100%, 100% 100%);
+  }
+  75% {
+    -webkit-clip-path: polygon(50% 50%, 0 0, 100% 0, 100% 100%, 0 100%, 0 100%); /* Safari */
+    clip-path: polygon(50% 50%, 0 0, 100% 0, 100% 100%, 0 100%, 0 100%);
+  }
+  100% {
+    -webkit-clip-path: polygon(50% 50%, 0 0, 100% 0, 100% 100%, 0 100%, 0 0); /* Safari */
+    clip-path: polygon(50% 50%, 0 0, 100% 0, 100% 100%, 0 100%, 0 0);
+  }
+}
+
+.headerCardGray {
+  height: 28px;
+  background-color: gray;
+  color: white;
+  display: -webkit-flex; /* Safari */
+  display: flex;
+  -webkit-align-items: center; /* Safari */
+  align-items: center;
+  border-radius: 8px;
+}
+
+
+.gridCol18 {
+  display: grid;
+  grid-template-columns: repeat(18, minmax(0, 1fr));
+  /* Note: CSS Grid has limited support in older Safari versions */
+}
+
+.gridCol24 {
+  display: grid;
+  grid-template-columns: repeat(24, minmax(0, 1fr));
+  /* Note: CSS Grid has limited support in older Safari versions */
+}
+
+/* Grid column spans */
+.gridColSpan1 {
+  grid-column: span 1 / span 1;
+  -webkit-grid-column: span 1 / span 1; /* WebKit */
+}
+.gridColSpan2 {
+  grid-column: span 2 / span 2;
+  -webkit-grid-column: span 2 / span 2; /* WebKit */
+}
+.gridColSpan3 {
+  grid-column: span 3 / span 3;
+  -webkit-grid-column: span 3 / span 3; /* WebKit */
+}
+.gridColSpan4 {
+  grid-column: span 4 / span 4;
+  -webkit-grid-column: span 4 / span 4; /* WebKit */
+}
+.gridColSpan5 {
+  grid-column: span 5 / span 5;
+  -webkit-grid-column: span 5 / span 5; /* WebKit */
+}
+.gridColSpan6 {
+  grid-column: span 6 / span 6;
+  -webkit-grid-column: span 6 / span 6; /* WebKit */
+}
+.gridColSpan7 {
+  grid-column: span 7 / span 7;
+  -webkit-grid-column: span 7 / span 7; /* WebKit */
+}
+.gridColSpan8 {
+  grid-column: span 8 / span 8;
+  -webkit-grid-column: span 8 / span 8; /* WebKit */
+}
+.gridColSpan9 {
+  grid-column: span 9 / span 9;
+  -webkit-grid-column: span 9 / span 9; /* WebKit */
+}
+.gridColSpan10 {
+  grid-column: span 10 / span 10;
+  -webkit-grid-column: span 10 / span 10; /* WebKit */
+}
+.gridColSpan11 {
+  grid-column: span 11 / span 11;
+  -webkit-grid-column: span 11 / span 11; /* WebKit */
+}
+.gridColSpan12 {
+  grid-column: span 12 / span 12;
+  -webkit-grid-column: span 12 / span 12; /* WebKit */
+}
+.gridColSpan13 {
+  grid-column: span 13 / span 13;
+  -webkit-grid-column: span 13 / span 13; /* WebKit */
+}
+.gridColSpan14 {
+  grid-column: span 14 / span 14;
+  -webkit-grid-column: span 14 / span 14; /* WebKit */
+}
+.gridColSpan15 {
+  grid-column: span 15 / span 15;
+  -webkit-grid-column: span 15 / span 15; /* WebKit */
+}
+.gridColSpan16 {
+  grid-column: span 16 / span 16;
+  -webkit-grid-column: span 16 / span 16; /* WebKit */
+}
+.gridColSpan17 {
+  grid-column: span 17 / span 17;
+  -webkit-grid-column: span 17 / span 17; /* WebKit */
+}
+.gridColSpan18 {
+  grid-column: span 18 / span 18;
+  -webkit-grid-column: span 18 / span 18; /* WebKit */
+}
+.gridColSpan19 {
+  grid-column: span 19 / span 19;
+  -webkit-grid-column: span 19 / span 19; /* WebKit */
+}
+
+.gridColSpan20 {
+  grid-column: span 20 / span 20;
+  -webkit-grid-column: span 20 / span 20; /* WebKit */
+}
+
+.gridColSpan21 {
+  grid-column: span 21 / span 21;
+  -webkit-grid-column: span 21 / span 21; /* WebKit */
+}
+
+.gridColSpan22 {
+  grid-column: span 22 / span 22;
+  -webkit-grid-column: span 22 / span 22; /* WebKit */
+}
+
+.gridColSpan23 {
+  grid-column: span 23 / span 23;
+  -webkit-grid-column: span 23 / span 23; /* WebKit */
+}
+
+.gridColSpan24 {
+  grid-column: span 24 / span 24;
+  -webkit-grid-column: span 24 / span 24; /* WebKit */
+}
+

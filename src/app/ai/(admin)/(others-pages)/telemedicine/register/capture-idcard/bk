@@ -1,0 +1,894 @@
+// "use client";
+
+// import React, { useState, useRef, useCallback, useEffect } from "react";
+// import { useRouter } from "next/navigation";
+// import { FiCamera, FiRotateCcw, FiCheck } from "react-icons/fi";
+
+// // ==================== API Configuration ====================
+// const BASE_URL =
+//   process.env.NEXT_PUBLIC_APPOINT_API_URL || "https://shop.api-apsx.co";
+// const OTP_API_URL =
+//   process.env.NEXT_PUBLIC_API_URL || "https://linecrm.api-apsx.com";
+// const SHOP_ID = parseInt(process.env.NEXT_PUBLIC_SHOP_ID || "949");
+
+// const API_KEYS = {
+//   public_key: process.env.NEXT_PUBLIC_API_PUBLIC_KEY || "",
+//   private_key: process.env.NEXT_PUBLIC_API_PRIVATE_KEY || "",
+// };
+
+// const AUTH_TOKEN = process.env.NEXT_PUBLIC_API_AUTH_TOKEN || "";
+
+// // Token Cache
+// let cachedToken: string | null = null;
+// let tokenExpiry: number = 0;
+
+// interface AuthResponse {
+//   status: boolean;
+//   data: { access_token: string };
+//   message: string;
+// }
+
+// // Get OAuth access token (with cache)
+// const getAccessToken = async (): Promise<string | null> => {
+//   if (cachedToken && Date.now() < tokenExpiry) {
+//     return cachedToken;
+//   }
+
+//   try {
+//     const response = await fetch(`${BASE_URL}/auth/oauth`, {
+//       method: "POST",
+//       headers: {
+//         "Content-Type": "application/json",
+//         Authorization: `Bearer ${AUTH_TOKEN}`,
+//       },
+//       body: JSON.stringify(API_KEYS),
+//     });
+
+//     if (!response.ok) return null;
+
+//     const data: AuthResponse = await response.json();
+//     if (data.status && data.data?.access_token) {
+//       cachedToken = data.data.access_token;
+//       tokenExpiry = Date.now() + 50 * 60 * 1000;
+//       return cachedToken;
+//     }
+//     return null;
+//   } catch (error) {
+//     console.error("Error getting access token:", error);
+//     return null;
+//   }
+// };
+
+// // Create customer API
+// interface CustomerAddRequest {
+//   shop_id: number;
+//   customer_group_id: number;
+//   user_id: number | null;
+//   right_treatment_id: number;
+//   ctm_prefix: string;
+//   ctm_gender: string;
+//   ctm_nation: string;
+//   ctm_religion: string;
+//   ctm_edu_level: string;
+//   ctm_marital_status: string;
+//   ctm_blood: string;
+//   ctm_treatment_type: number;
+//   ctm_citizen_id: string;
+//   ctm_fname: string;
+//   ctm_lname: string;
+//   ctm_nname: string;
+//   ctm_fname_en: string;
+//   ctm_lname_en: string;
+//   ctm_email: string;
+//   ctm_tel: string;
+//   ctm_birthdate: string;
+//   ctm_address: string;
+//   ctm_district: string;
+//   ctm_amphoe: string;
+//   ctm_province: string;
+//   ctm_zipcode: string;
+//   ctm_subscribe_opd: number;
+//   ctm_subscribe_lab: number;
+//   ctm_subscribe_cert: number;
+//   ctm_subscribe_receipt: number;
+//   ctm_subscribe_appoint: number;
+//   ctm_is_active: number;
+//   ctm_image: string;
+//   ctm_image_size: number;
+// }
+
+// interface CustomerAddResponse {
+//   status: boolean;
+//   message: string;
+//   data: number;
+// }
+
+// const createCustomer = async (
+//   customerData: CustomerAddRequest
+// ): Promise<CustomerAddResponse> => {
+//   try {
+//     const token = await getAccessToken();
+//     if (!token) {
+//       return { status: false, message: "ไม่สามารถขอ Token ได้", data: 0 };
+//     }
+
+//     const response = await fetch(`${BASE_URL}/customer`, {
+//       method: "POST",
+//       headers: {
+//         "Content-Type": "application/json",
+//         Authorization: `Bearer ${token}`,
+//       },
+//       body: JSON.stringify(customerData),
+//     });
+
+//     if (!response.ok) {
+//       return {
+//         status: false,
+//         message: `เกิดข้อผิดพลาด: ${response.status}`,
+//         data: 0,
+//       };
+//     }
+
+//     return await response.json();
+//   } catch (error) {
+//     console.error("Error creating customer:", error);
+//     return {
+//       status: false,
+//       message: "เกิดข้อผิดพลาดในการสร้างข้อมูล",
+//       data: 0,
+//     };
+//   }
+// };
+
+// // ✅ เช็คว่ามี HN แล้วหรือยัง (ใช้ก่อน POST /customer เพื่อป้องกัน duplicate)
+// const checkCitizenExists = async (
+//   citizenId: string
+// ): Promise<{ exists: boolean; hn: string | null; customerId: number | null }> => {
+//   try {
+//     const token = await getAccessToken();
+//     if (!token) return { exists: false, hn: null, customerId: null };
+
+//     const response = await fetch(`${BASE_URL}/customer/citizen/${citizenId}`, {
+//       method: "GET",
+//       headers: {
+//         "Content-Type": "application/json",
+//         Authorization: `Bearer ${token}`,
+//       },
+//     });
+
+//     if (!response.ok) return { exists: false, hn: null, customerId: null };
+
+//     const data = await response.json();
+//     if (data.status && data.data?.ctm_id) {
+//       return { exists: true, hn: data.data.ctm_id, customerId: data.data.id };
+//     }
+//     return { exists: false, hn: null, customerId: null };
+//   } catch (error) {
+//     console.error("Error checking citizen:", error);
+//     return { exists: false, hn: null, customerId: null };
+//   }
+// };
+
+// // ==================== OTP APIs ====================
+// interface OTPVerifyResponse {
+//   status: boolean;
+//   message?: string;
+//   data?: string | { access_token: string };
+// }
+
+// // ✅ เริ่ม OTP sync - POST /auth/onlinesyncexa
+// const startOnlineSyncOTP = async (
+//   citizenId: string
+// ): Promise<{ success: boolean; phone: string; message: string }> => {
+//   try {
+//     const token = localStorage.getItem("token");
+//     if (!token) {
+//       return { success: false, phone: "", message: "ไม่พบ token การเข้าสู่ระบบ" };
+//     }
+
+//     const email = localStorage.getItem("email") || "";
+//     const phoneRaw =
+//       localStorage.getItem("co_tel") ||
+//       localStorage.getItem("phone") ||
+//       localStorage.getItem("tel") ||
+//       "";
+
+//     const response = await fetch(`${OTP_API_URL}/auth/onlinesyncexa`, {
+//       method: "POST",
+//       headers: {
+//         "Content-Type": "application/json",
+//         Authorization: `Bearer ${token}`,
+//       },
+//       body: JSON.stringify({
+//         co_citizen_id: citizenId,
+//         co_email: email,
+//         co_tel: phoneRaw,
+//       }),
+//     });
+
+//     if (!response.ok) {
+//       return {
+//         success: false,
+//         phone: "",
+//         message: `เรียก onlinesyncexa ล้มเหลว: ${response.status}`,
+//       };
+//     }
+
+//     const data = await response.json();
+
+//     if (data?.status === true) {
+//       const tel = (data?.co_tel || phoneRaw || "") as string;
+//       const maskedPhone = tel
+//         ? tel.replace(/(\d{3})\d{3}(\d{4})/, "xxx-xxx-$2")
+//         : "xxx-xxx-xxxx";
+
+//       return {
+//         success: true,
+//         phone: maskedPhone,
+//         message: data?.message || "ส่ง OTP สำเร็จ",
+//       };
+//     }
+
+//     return {
+//       success: false,
+//       phone: "",
+//       message: data?.message || "ไม่สามารถส่ง OTP ได้",
+//     };
+//   } catch (error) {
+//     console.error("Error starting onlinesyncexa:", error);
+//     return { success: false, phone: "", message: "เกิดข้อผิดพลาดในการส่ง OTP" };
+//   }
+// };
+
+// // ยืนยัน OTP - POST /auth/otponlinesyncexa-lock
+// const verifyOTP = async (
+//   citizenId: string,
+//   otp: string
+// ): Promise<{ success: boolean; message: string }> => {
+//   try {
+//     const token = localStorage.getItem("token");
+//     if (!token) {
+//       return { success: false, message: "ไม่พบ token การเข้าสู่ระบบ" };
+//     }
+
+//     const response = await fetch(`${OTP_API_URL}/auth/otponlinesyncexa-lock`, {
+//       method: "POST",
+//       headers: {
+//         "Content-Type": "application/json",
+//         Authorization: `Bearer ${token}`,
+//       },
+//       body: JSON.stringify({
+//         cid: citizenId,
+//         otp: otp,
+//         shop_id: SHOP_ID,
+//       }),
+//     });
+
+//     if (!response.ok) {
+//       return { success: false, message: `ยืนยัน OTP ล้มเหลว: ${response.status}` };
+//     }
+
+//     const data: OTPVerifyResponse = await response.json();
+
+//     if (data.status) {
+//       if (typeof data.data === "object" && (data.data as any)?.access_token) {
+//         localStorage.setItem("token", (data.data as any).access_token);
+//       }
+//       localStorage.setItem("is_online_data_sync", "true");
+//       return { success: true, message: "ยืนยัน OTP สำเร็จ" };
+//     }
+
+//     return { success: false, message: data.message || "รหัส OTP ไม่ถูกต้องหรือหมดอายุแล้ว" };
+//   } catch (error) {
+//     console.error("Error verifying OTP:", error);
+//     return { success: false, message: "เกิดข้อผิดพลาดในการยืนยัน OTP" };
+//   }
+// };
+
+// // ==================== Image Compression ====================
+// const compressImage = (
+//   canvas: HTMLCanvasElement,
+//   maxWidth: number = 1200,
+//   quality: number = 0.6
+// ): string => {
+//   const ctx = canvas.getContext("2d");
+//   if (!ctx) return canvas.toDataURL("image/jpeg", quality);
+
+//   if (canvas.width > maxWidth) {
+//     const ratio = maxWidth / canvas.width;
+//     const tempCanvas = document.createElement("canvas");
+//     tempCanvas.width = maxWidth;
+//     tempCanvas.height = canvas.height * ratio;
+//     const tempCtx = tempCanvas.getContext("2d");
+//     if (tempCtx) {
+//       tempCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
+//       return tempCanvas.toDataURL("image/jpeg", quality);
+//     }
+//   }
+
+//   return canvas.toDataURL("image/jpeg", quality);
+// };
+
+// // ==================== Component ====================
+// type PageState = "capture" | "preview" | "loading" | "otp" | "success";
+
+// const CaptureIDCardPage: React.FC = () => {
+//   const router = useRouter();
+//   const videoRef = useRef<HTMLVideoElement>(null);
+//   const canvasRef = useRef<HTMLCanvasElement>(null);
+//   const streamRef = useRef<MediaStream | null>(null);
+//   const fileInputRef = useRef<HTMLInputElement>(null);
+
+//   const [pageState, setPageState] = useState<PageState>("capture");
+//   const [isCameraOpen, setIsCameraOpen] = useState(false);
+//   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+//   const [error, setError] = useState("");
+//   const [registeredHN, setRegisteredHN] = useState<string | null>(null);
+
+//   // OTP States
+//   const [otp, setOtp] = useState("");
+//   const [blindPhone, setBlindPhone] = useState("");
+//   const [otpLoading, setOtpLoading] = useState(false);
+//   const [citizenId, setCitizenId] = useState("");
+
+//   // Assign srcObject หลังจาก video element render แล้ว
+//   useEffect(() => {
+//     if (isCameraOpen && videoRef.current && streamRef.current) {
+//       videoRef.current.srcObject = streamRef.current;
+//     }
+//   }, [isCameraOpen]);
+
+//   // Cleanup camera on unmount
+//   useEffect(() => {
+//     return () => {
+//       if (streamRef.current) {
+//         streamRef.current.getTracks().forEach((track) => track.stop());
+//       }
+//     };
+//   }, []);
+
+//   // Open camera
+//   const openCamera = useCallback(async () => {
+//     try {
+//       setError("");
+//       const stream = await navigator.mediaDevices.getUserMedia({
+//         video: {
+//           facingMode: "environment",
+//           width: { ideal: 1280 },
+//           height: { ideal: 720 },
+//         },
+//       });
+
+//       streamRef.current = stream;
+//       setIsCameraOpen(true);
+//     } catch (err) {
+//       console.error("Error accessing camera:", err);
+//       setError(
+//         "ไม่สามารถเข้าถึงกล้องได้ กรุณาอนุญาตการใช้งานกล้อง หรือเลือกรูปจากแกลเลอรี่"
+//       );
+//     }
+//   }, []);
+
+//   // Close camera
+//   const closeCamera = useCallback(() => {
+//     if (streamRef.current) {
+//       streamRef.current.getTracks().forEach((track) => track.stop());
+//       streamRef.current = null;
+//     }
+//     setIsCameraOpen(false);
+//   }, []);
+
+//   // Capture photo from camera
+//   const capturePhoto = useCallback(() => {
+//     if (!videoRef.current || !canvasRef.current) return;
+
+//     const video = videoRef.current;
+//     const canvas = canvasRef.current;
+//     const context = canvas.getContext("2d");
+
+//     if (!context) return;
+
+//     canvas.width = video.videoWidth;
+//     canvas.height = video.videoHeight;
+//     context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+//     const imageData = compressImage(canvas, 1200, 0.6);
+//     setCapturedImage(imageData);
+//     setPageState("preview");
+//     closeCamera();
+//   }, [closeCamera]);
+
+//   // Handle file selection from gallery
+//   const handleFileSelect = useCallback(
+//     (event: React.ChangeEvent<HTMLInputElement>) => {
+//       const file = event.target.files?.[0];
+//       if (!file) return;
+
+//       const reader = new FileReader();
+//       reader.onload = (e) => {
+//         const img = new Image();
+//         img.onload = () => {
+//           const canvas = document.createElement("canvas");
+//           canvas.width = img.width;
+//           canvas.height = img.height;
+//           const ctx = canvas.getContext("2d");
+//           if (ctx) {
+//             ctx.drawImage(img, 0, 0);
+//             const compressed = compressImage(canvas, 1200, 0.6);
+//             setCapturedImage(compressed);
+//             setPageState("preview");
+//           }
+//         };
+//         img.src = e.target?.result as string;
+//       };
+//       reader.readAsDataURL(file);
+//     },
+//     []
+//   );
+
+//   // Retake photo
+//   const retakePhoto = useCallback(() => {
+//     setCapturedImage(null);
+//     setPageState("capture");
+//     setError("");
+//   }, []);
+
+//   // ==================== Main Submit Flow ====================
+//   // Flow: เช็ค HN → (ถ้าไม่มี) POST /customer → POST /auth/onlinesyncexa → OTP
+//   const handleSubmit = async () => {
+//     if (!capturedImage) {
+//       setError("กรุณาถ่ายรูปบัตรประชาชน");
+//       return;
+//     }
+
+//     setPageState("loading");
+//     setError("");
+
+//     try {
+//       const pendingDataStr = localStorage.getItem("pendingCustomerData");
+//       const storedCitizenId = localStorage.getItem("citizenId");
+
+//       if (!storedCitizenId) {
+//         setError("ไม่พบข้อมูลการลงทะเบียน กรุณากรอกข้อมูลใหม่");
+//         setTimeout(() => router.push("/ai/telemedicine/register"), 2000);
+//         return;
+//       }
+
+//       setCitizenId(storedCitizenId);
+
+//       // ===== Step 0: เช็คว่ามี HN แล้วหรือยัง (ป้องกัน duplicate) =====
+//       console.log("Step 0: Checking if HN exists...");
+//       const existingCustomer = await checkCitizenExists(storedCitizenId);
+
+//       if (existingCustomer.exists) {
+//         // ✅ มี HN แล้ว → Skip POST /customer → ไป OTP เลย
+//         console.log("Step 0: HN already exists, skipping POST /customer");
+//         console.log("Existing HN:", existingCustomer.hn);
+
+//         // ไป Step 2 เลย (ส่ง OTP)
+//         const otpResult = await startOnlineSyncOTP(storedCitizenId);
+
+//         if (otpResult.success) {
+//           console.log("OTP sent to", otpResult.phone);
+//           setBlindPhone(otpResult.phone);
+//           setPageState("otp");
+//         } else {
+//           // ถ้าส่ง OTP ไม่ได้ → ไป Success เลย (HN มีแล้ว)
+//           console.warn("OTP failed but HN exists:", otpResult.message);
+//           localStorage.setItem("userHN", existingCustomer.hn || "");
+//           localStorage.setItem("userCustomerId", existingCustomer.customerId?.toString() || "");
+//           setRegisteredHN(existingCustomer.hn);
+//           setPageState("success");
+//         }
+//         return;
+//       }
+
+//       // ===== Step 1: POST /customer (สร้าง HN ในระบบ Appointment) =====
+//       if (!pendingDataStr) {
+//         setError("ไม่พบข้อมูลการลงทะเบียน กรุณากรอกข้อมูลใหม่");
+//         setTimeout(() => router.push("/ai/telemedicine/register"), 2000);
+//         return;
+//       }
+
+//       console.log("Step 1: Creating customer in Appointment system...");
+//       const customerData: CustomerAddRequest = JSON.parse(pendingDataStr);
+//       customerData.ctm_image = capturedImage;
+//       customerData.ctm_image_size = Math.round(
+//         (capturedImage.length * 0.75) / 1024
+//       );
+
+//       const response = await createCustomer(customerData);
+
+//       if (!response.status || !response.data) {
+//         setError(response.message || "เกิดข้อผิดพลาดในการลงทะเบียน");
+//         setPageState("preview");
+//         return;
+//       }
+
+//       console.log("Step 1 Success: Customer ID =", response.data);
+
+//       // ลบข้อมูลชั่วคราว
+//       localStorage.removeItem("pendingCustomerData");
+
+//       // ===== Step 2: POST /auth/onlinesyncexa (สร้าง customer ใน EXA-MED + ส่ง OTP) =====
+//       console.log("Step 2: Sending OTP...");
+//       const otpResult = await startOnlineSyncOTP(storedCitizenId);
+
+//       if (otpResult.success) {
+//         console.log("Step 2 Success: OTP sent to", otpResult.phone);
+//         setBlindPhone(otpResult.phone);
+//         setPageState("otp");
+//       } else {
+//         console.warn("OTP start failed:", otpResult.message);
+//         // ถ้าส่ง OTP ไม่ได้ → ดึง HN แล้วไป Success
+//         const hnResult = await checkCitizenExists(storedCitizenId);
+//         if (hnResult.hn) {
+//           localStorage.setItem("userHN", hnResult.hn);
+//           localStorage.setItem("userCustomerId", hnResult.customerId?.toString() || "");
+//           setRegisteredHN(hnResult.hn);
+//         }
+//         setPageState("success");
+//       }
+//     } catch (err) {
+//       console.error("Submit error:", err);
+//       setError("เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
+//       setPageState("preview");
+//     }
+//   };
+
+//   // ==================== OTP Submit Flow ====================
+//   // Flow: POST /auth/otponlinesyncexa-lock → GET /customer/citizen/:id → Success
+//   const handleOtpSubmit = async () => {
+//     if (otp.length !== 6) {
+//       setError("กรุณากรอกรหัส OTP 6 หลัก");
+//       return;
+//     }
+
+//     setOtpLoading(true);
+//     setError("");
+
+//     try {
+//       // ===== Step 3: POST /auth/otponlinesyncexa-lock (ยืนยัน OTP) =====
+//       console.log("Step 3: Verifying OTP...");
+//       const verifyResult = await verifyOTP(citizenId, otp);
+
+//       if (!verifyResult.success) {
+//         setError(verifyResult.message);
+//         setOtpLoading(false);
+//         return;
+//       }
+
+//       console.log("Step 3 Success: OTP verified");
+
+//       // ===== Step 4: GET /customer/citizen/:id (ดึง HN มาแสดง) =====
+//       console.log("Step 4: Fetching HN...");
+//       const hnResult = await checkCitizenExists(citizenId);
+
+//       if (hnResult.hn) {
+//         console.log("Step 4 Success: HN =", hnResult.hn);
+//         localStorage.setItem("userHN", hnResult.hn);
+//         localStorage.setItem("userCustomerId", hnResult.customerId?.toString() || "");
+//         setRegisteredHN(hnResult.hn);
+//       } else {
+//         console.warn("Step 4: Could not fetch HN, but registration was successful");
+//         setRegisteredHN("ลงทะเบียนสำเร็จ");
+//       }
+
+//       // ไป Success Page
+//       setPageState("success");
+//     } catch (err) {
+//       console.error("OTP submit error:", err);
+//       setError("เกิดข้อผิดพลาดในการยืนยัน OTP");
+//     } finally {
+//       setOtpLoading(false);
+//     }
+//   };
+
+//   // Resend OTP
+//   const handleResendOTP = async () => {
+//     setOtpLoading(true);
+//     setError("");
+
+//     try {
+//       const result = await startOnlineSyncOTP(citizenId);
+//       if (result.success) {
+//         setBlindPhone(result.phone);
+//         setOtp("");
+//         setError("");
+//       } else {
+//         setError(result.message);
+//       }
+//     } catch (err) {
+//       setError("ไม่สามารถส่ง OTP ใหม่ได้");
+//     } finally {
+//       setOtpLoading(false);
+//     }
+//   };
+
+//   // Go to appointment
+//   const goToAppointment = () => {
+//     router.push("/ai/telemedicine/register/appointment");
+//   };
+
+//   // ==================== Render ====================
+
+//   // OTP Page
+//   if (pageState === "otp") {
+//     return (
+//       <div className="min-h-screen bg-[#F2F8FE] flex items-center justify-center p-4">
+//         <div className="bg-white rounded-3xl shadow-lg p-8 max-w-sm w-full">
+//           <h2 className="text-xl font-bold text-gray-800 text-center mb-6">
+//             ยืนยันตัวตน
+//           </h2>
+
+//           <div className="text-center mb-6">
+//             <p className="text-gray-500 text-sm mb-2">
+//               กรุณากรอกรหัสยืนยันที่ส่งไปยังหมายเลข
+//             </p>
+//             <p className="text-pink-500 font-medium text-lg">{blindPhone}</p>
+//           </div>
+
+//           {/* Status Badge */}
+//           <div className="flex justify-center mb-6">
+//             <span className="px-4 py-2 rounded-full text-sm bg-yellow-100 text-yellow-700">
+//               ⏳ รอยืนยัน OTP
+//             </span>
+//           </div>
+
+//           {/* OTP Input */}
+//           <div className="mb-6">
+//             <input
+//               type="text"
+//               inputMode="numeric"
+//               maxLength={6}
+//               value={otp}
+//               onChange={(e) => {
+//                 const value = e.target.value.replace(/\D/g, "");
+//                 if (value.length <= 6) setOtp(value);
+//               }}
+//               onKeyDown={(e) => {
+//                 if (e.key === "Enter" && otp.length === 6) {
+//                   handleOtpSubmit();
+//                 }
+//               }}
+//               placeholder="000000"
+//               className="w-full text-center text-2xl tracking-[0.5em] py-4 border-2 border-gray-200 rounded-xl focus:border-blue-400 focus:outline-none"
+//               disabled={otpLoading}
+//             />
+//           </div>
+
+//           {error && (
+//             <p className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-lg mb-4">
+//               {error}
+//             </p>
+//           )}
+
+//           {/* Buttons */}
+//           <div className="space-y-3">
+//             <button
+//               onClick={handleOtpSubmit}
+//               disabled={otpLoading || otp.length !== 6}
+//               className={`w-full py-4 rounded-full font-medium transition-all shadow-md ${
+//                 otpLoading || otp.length !== 6
+//                   ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+//                   : "bg-blue-500 text-white hover:bg-blue-600"
+//               }`}
+//             >
+//               {otpLoading ? "กำลังตรวจสอบ..." : "ยืนยัน"}
+//             </button>
+
+//             <button
+//               onClick={handleResendOTP}
+//               disabled={otpLoading}
+//               className="w-full py-3 text-blue-500 hover:text-blue-600 text-sm font-medium"
+//             >
+//               ส่งรหัส OTP อีกครั้ง
+//             </button>
+//           </div>
+//         </div>
+//       </div>
+//     );
+//   }
+
+//   // Success Page
+//   if (pageState === "success") {
+//     return (
+//       <div className="min-h-screen bg-[#F2F8FE] flex items-center justify-center p-4">
+//         <div className="bg-white rounded-3xl shadow-lg p-8 max-w-sm w-full text-center">
+//           {/* Success Icon */}
+//           <div className="w-24 h-24 mx-auto mb-6 rounded-full border-4 border-pink-500 flex items-center justify-center">
+//             <FiCheck className="w-12 h-12 text-pink-500" strokeWidth={3} />
+//           </div>
+
+//           <h2 className="text-xl font-bold text-pink-500 mb-4">
+//             ลงทะเบียนใช้บริการสถานพยาบาลแล้ว
+//           </h2>
+
+//           {/* แสดง HN */}
+//           {registeredHN && (
+//             <div className="bg-blue-50 rounded-2xl p-4 mb-6">
+//               <p className="text-gray-500 text-sm mb-1">หมายเลขผู้ป่วย (HN)</p>
+//               <p className="text-2xl font-bold text-blue-600">{registeredHN}</p>
+//             </div>
+//           )}
+
+//           <button
+//             onClick={goToAppointment}
+//             className="w-full py-4 bg-blue-500 text-white rounded-full font-medium hover:bg-blue-600 transition-colors shadow-md"
+//           >
+//             ไปหน้านัดหมาย
+//           </button>
+//         </div>
+//       </div>
+//     );
+//   }
+
+//   // Loading Page
+//   if (pageState === "loading") {
+//     return (
+//       <div className="min-h-screen bg-[#F2F8FE] flex items-center justify-center p-4">
+//         <div className="bg-white rounded-3xl shadow-lg p-8 max-w-sm w-full text-center">
+//           <div className="animate-spin w-16 h-16 mx-auto mb-6 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+//           <p className="text-gray-600">กำลังลงทะเบียน...</p>
+//         </div>
+//       </div>
+//     );
+//   }
+
+//   // Preview Page
+//   if (pageState === "preview" && capturedImage) {
+//     return (
+//       <div className="min-h-screen bg-[#F2F8FE] p-4 md:p-6">
+//         <div className="max-w-lg mx-auto">
+//           <h1 className="text-xl md:text-2xl font-bold text-gray-800 text-center mb-6">
+//             2. ถ่ายรูปคู่บัตรประชาชนเพื่อยืนยันตัวตน
+//           </h1>
+
+//           <div className="bg-white rounded-3xl shadow-lg p-6">
+//             {/* Preview Image */}
+//             <div className="rounded-2xl overflow-hidden mb-6">
+//               <img
+//                 src={capturedImage}
+//                 alt="บัตรประชาชน"
+//                 className="w-full h-auto"
+//               />
+//             </div>
+
+//             {error && (
+//               <p className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-lg mb-4">
+//                 {error}
+//               </p>
+//             )}
+
+//             {/* Buttons */}
+//             <div className="space-y-3">
+//               <button
+//                 onClick={handleSubmit}
+//                 className="w-full py-4 bg-blue-500 text-white rounded-full font-medium hover:bg-blue-600 transition-colors shadow-md flex items-center justify-center gap-2"
+//               >
+//                 <FiCheck className="w-5 h-5" />
+//                 ยืนยันและลงทะเบียน
+//               </button>
+
+//               <button
+//                 onClick={retakePhoto}
+//                 className="w-full py-4 bg-white text-blue-500 border-2 border-blue-500 rounded-full font-medium hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"
+//               >
+//                 <FiRotateCcw className="w-5 h-5" />
+//                 ถ่ายใหม่
+//               </button>
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+//     );
+//   }
+
+//   // Capture Page (Default)
+//   return (
+//     <div className="min-h-screen bg-[#F2F8FE] p-4 md:p-6">
+//       <div className="max-w-lg mx-auto">
+//         <h1 className="text-xl md:text-2xl font-bold text-gray-800 text-center mb-6">
+//           2. ถ่ายรูปคู่บัตรประชาชนเพื่อยืนยันตัวตน
+//         </h1>
+
+//         <div className="bg-white rounded-3xl shadow-lg p-6">
+//           {/* Camera Preview */}
+//           {isCameraOpen && (
+//             <div className="relative rounded-2xl overflow-hidden mb-6 bg-black">
+//               <video
+//                 ref={videoRef}
+//                 autoPlay
+//                 playsInline
+//                 muted
+//                 className="w-full h-64 object-cover"
+//               />
+
+//               {/* ID Card Frame Guide */}
+//               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+//                 <div className="w-[85%] h-[55%] border-2 border-dashed border-white/70 rounded-xl"></div>
+//               </div>
+//             </div>
+//           )}
+
+//           {/* Placeholder when camera is closed */}
+//           {!isCameraOpen && (
+//             <div className="rounded-2xl bg-gray-100 h-48 flex flex-col items-center justify-center mb-6">
+//               <FiCamera className="w-16 h-16 text-gray-300 mb-2" />
+//               <p className="text-gray-400 text-sm">
+//                 กดปุ่มด้านล่างเพื่อเปิดกล้อง
+//               </p>
+//             </div>
+//           )}
+
+//           {error && (
+//             <p className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-lg mb-4">
+//               {error}
+//             </p>
+//           )}
+
+//           {/* Buttons */}
+//           <div className="space-y-3">
+//             {isCameraOpen && (
+//               <>
+//                 <button
+//                   onClick={capturePhoto}
+//                   className="w-full py-4 bg-blue-500 text-white rounded-full font-medium hover:bg-blue-600 transition-colors shadow-md flex items-center justify-center gap-2"
+//                 >
+//                   <FiCamera className="w-5 h-5" />
+//                   กดถ่ายรูป
+//                 </button>
+
+//                 <button
+//                   onClick={closeCamera}
+//                   className="w-full py-4 bg-gray-100 text-gray-600 rounded-full font-medium hover:bg-gray-200 transition-colors"
+//                 >
+//                   ยกเลิก
+//                 </button>
+//               </>
+//             )}
+
+//             {!isCameraOpen && (
+//               <>
+//                 <button
+//                   onClick={openCamera}
+//                   className="w-full py-4 bg-white text-blue-500 border-2 border-blue-500 rounded-full font-medium hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"
+//                 >
+//                   <FiCamera className="w-5 h-5" />
+//                   ถ่ายรูปบัตรประชาชน
+//                 </button>
+
+//                 <button
+//                   onClick={() => fileInputRef.current?.click()}
+//                   className="w-full py-4 bg-gray-100 text-gray-600 rounded-full font-medium hover:bg-gray-200 transition-colors"
+//                 >
+//                   เลือกจากแกลเลอรี่
+//                 </button>
+//               </>
+//             )}
+//           </div>
+
+//           {/* Hidden file input */}
+//           <input
+//             ref={fileInputRef}
+//             type="file"
+//             accept="image/*"
+//             capture="environment"
+//             onChange={handleFileSelect}
+//             className="hidden"
+//           />
+
+//           {/* Hidden canvas for capture */}
+//           <canvas ref={canvasRef} className="hidden" />
+//         </div>
+
+//         {/* Info Text */}
+//         <p className="text-center text-gray-500 text-sm mt-4">
+//           รูปภาพจะถูกบีบอัดอัตโนมัติเพื่อความรวดเร็วในการส่งข้อมูล
+//         </p>
+//       </div>
+//     </div>
+//   );
+// };
+
+// export default CaptureIDCardPage;

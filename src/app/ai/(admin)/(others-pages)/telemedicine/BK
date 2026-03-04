@@ -1,0 +1,59 @@
+# "use client";
+# import React, { useEffect, useState } from "react";
+# import { useRouter } from "next/navigation";
+# import CitizenIdSync from "@/components/auth/CitizenIdSync";
+
+# export default function TelemedicinePage() {
+#   const router = useRouter();
+#   const [open, setOpen] = useState(false);
+#   const [isChecking, setIsChecking] = useState(true);
+
+#   useEffect(() => {
+#     // ✅ เช็คก่อนว่ามี HN + OTP verified แล้วหรือยัง
+#     const customerId = localStorage.getItem("userCustomerId");
+#     const isOtpVerified = localStorage.getItem("is_online_data_sync") === "true";
+
+#     if (customerId && isOtpVerified) {
+#       // ✅ มี HN แล้ว → ไปหน้านัดหมายเลย
+#       console.log("User already has HN and OTP verified, redirecting to appointment");
+#       router.replace("/ai/telemedicine/register/appointment");
+#       return;
+#     }
+
+#     // ❌ ยังไม่มี HN → เปิด Modal
+#     setIsChecking(false);
+#     setOpen(true);
+#   }, [router]);
+
+#   // ✅ Handler เมื่อ Sync สำเร็จ
+#   // Note: CitizenIdSync จะ handle redirect ให้ตาม redirectPath/registerPath
+#   const handleSyncSuccess = (hasHN: boolean) => {
+#     setOpen(false);
+#     // ไม่ต้อง redirect เอง - CitizenIdSync จัดการให้แล้ว
+#   };
+
+#   // Loading ขณะเช็ค
+#   if (isChecking) {
+#     return (
+#       <div className="min-h-screen bg-[#F2F8FE] flex items-center justify-center">
+#         <div className="text-center">
+#           <div className="animate-spin w-12 h-12 mx-auto mb-4 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+#           <p className="text-gray-500">กำลังตรวจสอบข้อมูล...</p>
+#         </div>
+#       </div>
+#     );
+#   }
+
+#   return (
+#     <div className="min-h-screen bg-[#F2F8FE]">
+#       {/* ไม่แสดง UI อื่น แสดงแค่ Modal */}
+#       <CitizenIdSync
+#         isOpen={open}
+#         onClose={() => setOpen(false)}
+#         redirectPath="/ai/telemedicine/register/appointment"  // ✅ found: true + OTP verified → ไป appointment
+#         registerPath="/ai/telemedicine/register"              // ✅ found: false → ไป register
+#         onSyncSuccess={handleSyncSuccess}
+#       />
+#     </div>
+#   );
+# }
