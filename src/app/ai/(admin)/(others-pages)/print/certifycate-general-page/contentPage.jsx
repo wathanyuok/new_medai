@@ -1,8 +1,8 @@
 import React from "react";
 import localStyle from "./localStyle.module.css";
 import reportStyle from "../report.module.css";
-import checkBoxEmptyIcon from "/public/images/icons/check-box-empty.png";
-import checkBoxIcon from "/public/images/icons/check-box.png";
+import checkBoxEmptyIcon from "@/public/images/icons/check-box-empty.png";
+import checkBoxIcon from "@/public/images/icons/check-box.png";
 import Image from "next/image";
 import ComFormat from "../../common/comFormat";
 

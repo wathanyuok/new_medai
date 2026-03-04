@@ -1,8 +1,8 @@
 import React from "react";
 import reportStyle from "../report.module.css";
-import logo from "/public/images/icons/apsx_logo.png";
+import logo from "@/public/images/icons/apsx_logo.png";
 import Image from "next/image";
-import notImg from "/public/images/icons/no-pictures.png";
+import notImg from "@/public/images/icons/no-pictures.png";
 
 export default function headerPage({ prop }) {
   return (

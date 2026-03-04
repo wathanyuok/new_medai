@@ -1,7 +1,7 @@
 import React from "react";
 import localStyle from "./localStyle.module.css";
 import reportStyle from "../report.module.css";
-import checkIcon from "/public/images/icons/check.png";
+import checkIcon from "@/public/images/icons/check.png";
 import Image from "next/image";
 import ComFormat from "../../common/comFormat";
 
