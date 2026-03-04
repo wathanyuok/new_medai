@@ -243,4 +243,12 @@ const DoctorSelectPage: React.FC = () => {
   );
 };
 
-export default DoctorSelectPage;
+import { Suspense } from "react";
+
+const DoctorSelectPageWrapper = () => (
+  <Suspense fallback={<div className="min-h-screen bg-[#F2F8FE] flex items-center justify-center"><div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full"></div></div>}>
+    <DoctorSelectPage />
+  </Suspense>
+);
+
+export default DoctorSelectPageWrapper;
