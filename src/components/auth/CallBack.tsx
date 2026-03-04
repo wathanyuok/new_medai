@@ -252,4 +252,12 @@ const Callback: React.FC = () => {
     );
 };
 
-export default Callback;
+import { Suspense } from "react";
+
+const PageWrapper = () => (
+  <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full"></div></div>}>
+    <Callback />
+  </Suspense>
+);
+
+export default PageWrapper;
