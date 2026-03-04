@@ -2,8 +2,6 @@ import React from "react";
 import reportStyle from "../report.module.css";
 import ComFormat from "../../common/comFormat";
 import Image from "next/image";
-import logo from "@/public/images/icons/apsx_logo.png";
-import notImg from "@/public/images/icons/no-pictures.png";
 
 export default function HeaderPage({ prop }) {
   let tempData = prop;

@@ -1,7 +1,6 @@
 import React from "react";
 import localStyle from "./localStyle.module.css";
 import reportStyle from "../report.module.css";
-import checkIcon from "@/public/images/icons/check.png";
 import Image from "next/image";
 import ComFormat from "../../common/comFormat";
 
@@ -216,7 +215,7 @@ export default function contentPage({ prop }) {
           (
           {tempData.opd_sick_air == 2 ? (
             <Image
-              src={checkIcon}
+              src="/images/icons/check.png"
               alt="check"
               width={20}
               height={20}
@@ -285,7 +284,7 @@ export default function contentPage({ prop }) {
           (
           {tempData.opd_sick_notrest == 2 ? (
             <Image
-              src={checkIcon}
+              src="/images/icons/check.png"
               alt="check"
               width={20}
               height={20}

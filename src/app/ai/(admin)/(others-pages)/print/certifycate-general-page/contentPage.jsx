@@ -1,8 +1,6 @@
 import React from "react";
 import localStyle from "./localStyle.module.css";
 import reportStyle from "../report.module.css";
-import checkBoxEmptyIcon from "@/public/images/icons/check-box-empty.png";
-import checkBoxIcon from "@/public/images/icons/check-box.png";
 import Image from "next/image";
 import ComFormat from "../../common/comFormat";
 
@@ -200,7 +198,7 @@ export default function contentPage({ prop }) {
         <div className={`flex ${reportStyle.gridColSpan2}`}>
           <div className="pr-2">
             <Image
-              src={checkBoxEmptyIcon}
+              src="/images/icons/check-box-empty.png"
               alt="check"
               width={16}
               height={16}
@@ -212,7 +210,7 @@ export default function contentPage({ prop }) {
         <div className={`flex ${reportStyle.gridColSpan2}`}>
           <div className="pr-2">
             <Image
-              src={checkBoxEmptyIcon}
+              src="/images/icons/check-box-empty.png"
               alt="check"
               width={16}
               height={16}
@@ -236,7 +234,7 @@ export default function contentPage({ prop }) {
         <div className={`flex ${reportStyle.gridColSpan2}`}>
           <div className="pr-2">
             <Image
-              src={checkBoxEmptyIcon}
+              src="/images/icons/check-box-empty.png"
               alt="check"
               width={16}
               height={16}
@@ -248,7 +246,7 @@ export default function contentPage({ prop }) {
         <div className={`flex ${reportStyle.gridColSpan2}`}>
           <div className="pr-2">
             <Image
-              src={checkBoxEmptyIcon}
+              src="/images/icons/check-box-empty.png"
               alt="check"
               width={16}
               height={16}
@@ -511,7 +509,7 @@ export default function contentPage({ prop }) {
         <div className={`flex ${reportStyle.gridColSpan2}`}>
           <div className="pr-2">
             <Image
-              src={checkBoxEmptyIcon}
+              src="/images/icons/check-box-empty.png"
               alt="check"
               width={16}
               height={16}
@@ -523,7 +521,7 @@ export default function contentPage({ prop }) {
         <div className={`flex ${reportStyle.gridColSpan3}`}>
           <div className="pr-2">
             <Image
-              src={checkBoxEmptyIcon}
+              src="/images/icons/check-box-empty.png"
               alt="check"
               width={16}
               height={16}

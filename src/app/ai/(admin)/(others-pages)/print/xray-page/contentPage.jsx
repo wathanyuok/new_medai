@@ -1,7 +1,5 @@
 import React from "react";
 
-import notImg from "@/public/images/icons/no-pictures.png";
-// import notImg from "@/public/images/icons/no-pictures.png";
 import reportStyle from "../report.module.css";
 
 export default function contentPage({ prop }) {
