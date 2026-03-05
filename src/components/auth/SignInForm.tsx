@@ -64,6 +64,8 @@ export default function SignInForm() {
         }),
       });
       localStorage.setItem('phone', phone);
+      localStorage.setItem('co_tel', phone);
+
       const data = await res.json();
       console.log('Response data:', data);
       const tokens = data.data?.access_token;

@@ -186,9 +186,9 @@ export default function AppointmentPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [isLogin, setIsLogin] = useState<boolean>(true);
-  const [isDataSync, setIsDataSync] = useState<boolean | null>(null); // null = ยังไม่โหลด
+  const [isDataSync, setIsDataSync] = useState<boolean | null>(null);
 
-  // ✅ State สำหรับ CitizenIdSync Modal
+  // State สำหรับ CitizenIdSync Modal
   const [showCitizenSync, setShowCitizenSync] = useState(false);
 
   useEffect(() => {
@@ -200,7 +200,7 @@ export default function AppointmentPage() {
     }
     setIsLogin(true);
     
-    // ✅ เช็ค sync status
+    // เช็ค sync status
     const syncStatus = localStorage.getItem("is_online_data_sync") === "true";
     setIsDataSync(syncStatus);
     
@@ -211,18 +211,17 @@ export default function AppointmentPage() {
     }
   }, []);
 
-  // ✅ เปิด Modal อัตโนมัติเมื่อยังไม่ได้ sync
+  // เปิด Modal อัตโนมัติเมื่อยังไม่ได้ sync
   useEffect(() => {
     if (isLogin && isDataSync === false) {
       setShowCitizenSync(true);
     }
   }, [isLogin, isDataSync]);
 
-  // ✅ Handler เมื่อ Sync สำเร็จ
-  const handleSyncSuccess = (hasHN: boolean) => {
+  // Handler เมื่อ Sync สำเร็จ
+  const handleSyncSuccess = () => {
     setShowCitizenSync(false);
     toast.success("เชื่อมต่อข้อมูลสำเร็จ");
-    // Reload เพื่อดึงข้อมูลใหม่
     window.location.reload();
   };
 
@@ -230,12 +229,11 @@ export default function AppointmentPage() {
     setLoading(true);
 
     try {
-      // ✅ ดึง HN จาก localStorage เพื่อ filter เฉพาะนัดหมายของ user นี้
       const userHN = localStorage.getItem("userHN") || "";
       
       const params: SearchParams = {
-        user_id: -1,              // ใช้ -1 เพื่อดึงทุกแพทย์
-        search: userHN,           // ✅ ใช้ HN เพื่อ filter เฉพาะนัดหมายของ user นี้
+        user_id: -1,
+        search: userHN,
         date: "",
         type: "",
         opd_type: "",
@@ -250,7 +248,6 @@ export default function AppointmentPage() {
         const allAppointments = response.data.result_data;
         setTotalCount(response.data.count_all || allAppointments.length);
 
-        // หานัดหมายครั้งต่อไป (วันที่ในอนาคตที่ใกล้ที่สุด)
         const now = new Date();
         const futureAppointments = allAppointments
           .filter((apt) => new Date(apt.ap_datetime) >= now && apt.ap_status_id !== 4)
@@ -295,7 +292,7 @@ export default function AppointmentPage() {
             pageTitle="นัดหมายของคุณ"
           />
 
-          <div className="grid grid-cols-1 gap-6 p-6">
+          <div className="grid grid-cols-1 gap-4 p-4 md:gap-6 md:p-6">
             <div className="lg:col-span-2 space-y-4">
               {/* Loading State */}
               {loading ? (
@@ -315,19 +312,19 @@ export default function AppointmentPage() {
                 <>
                   {/* Next Appointment Card */}
                   {nextAppointment && (
-                    <div className="bg-white rounded-xl shadow-sm p-5">
-                      <h2 className="text-lg font-semibold text-gray-800 mb-3">
+                    <div className="bg-white rounded-xl shadow-sm p-4 md:p-5">
+                      <h2 className="text-base md:text-lg font-semibold text-gray-800 mb-3">
                         นัดหมายครั้งต่อไป
                       </h2>
-                      <div className="flex flex-wrap items-center gap-4">
+                      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-4">
                         <span className="font-medium text-gray-700">
                           {nextAppointment.ap_topic}
                         </span>
-                        <span className="text-gray-600">
+                        <span className="text-sm text-gray-600">
                           {formatThaiDate(nextAppointment.ap_datetime)}
                         </span>
                         <span
-                          className={`px-3 py-1 rounded-full text-sm ${
+                          className={`self-start px-3 py-1 rounded-full text-xs md:text-sm ${
                             getTypeLabel(nextAppointment.ap_type).bgColor
                           } ${getTypeLabel(nextAppointment.ap_type).color}`}
                         >
@@ -337,83 +334,124 @@ export default function AppointmentPage() {
                     </div>
                   )}
 
-                  {/* Appointments Table */}
+                  {/* Appointments List */}
                   {items.length > 0 ? (
-                    <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-                      {/* Table Header */}
-                      <div className="grid grid-cols-12 gap-4 px-5 py-3 bg-gray-50 border-b border-gray-100">
-                        <div className="col-span-1 text-sm font-medium text-gray-500">
-                          #
+                    <>
+                      {/* ===== Desktop Table (hidden on mobile) ===== */}
+                      <div className="hidden md:block bg-white rounded-xl shadow-sm overflow-hidden">
+                        {/* Table Header */}
+                        <div className="grid grid-cols-12 gap-4 px-5 py-3 bg-gray-50 border-b border-gray-100">
+                          <div className="col-span-1 text-sm font-medium text-gray-500">
+                            #
+                          </div>
+                          <div className="col-span-5 text-sm font-medium text-gray-500">
+                            รายการนัดหมาย
+                          </div>
+                          <div className="col-span-2 text-sm font-medium text-gray-500 flex items-center gap-1">
+                            <FiTag size={14} /> ประเภท
+                          </div>
+                          <div className="col-span-2 text-sm font-medium text-gray-500 flex items-center gap-1">
+                            <FiClock size={14} /> วันนัด
+                          </div>
+                          <div className="col-span-2 text-sm font-medium text-gray-500 flex items-center gap-1">
+                            <FiCheckCircle size={14} /> สถานะ
+                          </div>
                         </div>
-                        <div className="col-span-4 text-sm font-medium text-gray-500">
-                          รายการนัดหมาย
-                        </div>
-                        <div className="col-span-2 text-sm font-medium text-gray-500 flex items-center gap-1">
-                          <FiTag size={14} /> ประเภทนัดหมาย
-                        </div>
-                        <div className="col-span-3 text-sm font-medium text-gray-500 flex items-center gap-1">
-                          <FiClock size={14} /> เวลานัด
-                        </div>
-                        <div className="col-span-2 text-sm font-medium text-gray-500 flex items-center gap-1">
-                          <FiCheckCircle size={14} /> สถานะ
+
+                        {/* Table Rows */}
+                        <div className="divide-y divide-gray-100">
+                          {items.map((item, idx) => {
+                            const typeInfo = getTypeLabel(item.ap_type);
+                            const statusInfo = getStatusInfo(item.ap_status_id);
+
+                            return (
+                              <div
+                                key={item.id}
+                                className="grid grid-cols-12 gap-4 px-5 py-4 hover:bg-gray-50 transition-colors"
+                              >
+                                <div className="col-span-1 text-gray-500">{idx + 1}</div>
+                                <div className="col-span-5">
+                                  <p className="text-gray-800 font-medium">{item.ap_topic}</p>
+                                  {item.ap_comment && (
+                                    <p className="text-sm text-gray-500 mt-1 line-clamp-2">{item.ap_comment}</p>
+                                  )}
+                                </div>
+                                <div className="col-span-2">
+                                  <span className={`inline-block px-2 py-1 rounded-full text-xs ${typeInfo.bgColor} ${typeInfo.color}`}>
+                                    {typeInfo.label}
+                                  </span>
+                                </div>
+                                <div className="col-span-2 text-gray-600 text-sm">
+                                  {formatThaiDate(item.ap_datetime)}
+                                </div>
+                                <div className="col-span-2">
+                                  <span className={`inline-block px-2 py-1 rounded-full text-xs ${statusInfo.bgColor} ${statusInfo.color}`}>
+                                    {statusInfo.label}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
 
-                      {/* Table Rows */}
-                      <div className="divide-y divide-gray-100">
-                        {items.map((item, idx) => {
+                      {/* ===== Mobile Cards (hidden on desktop) ===== */}
+                      <div className="md:hidden space-y-3">
+                        {items.map((item) => {
                           const typeInfo = getTypeLabel(item.ap_type);
                           const statusInfo = getStatusInfo(item.ap_status_id);
 
                           return (
                             <div
                               key={item.id}
-                              className="grid grid-cols-12 gap-4 px-5 py-4 hover:bg-gray-50 transition-colors"
+                              className="bg-white rounded-xl shadow-sm p-4 border border-gray-100"
                             >
-                              {/* # */}
-                              <div className="col-span-1 text-gray-500">
-                                {idx + 1}
-                              </div>
-
-                              {/* รายการนัดหมาย */}
-                              <div className="col-span-4">
-                                <p className="text-gray-800 font-medium">
+                              {/* Header: Topic + Status */}
+                              <div className="flex items-start justify-between gap-3 mb-3">
+                                <h3 className="font-medium text-gray-800 flex-1 text-sm">
                                   {item.ap_topic}
-                                </p>
-                                {item.ap_comment && (
-                                  <p className="text-sm text-gray-500 mt-1">
-                                    {item.ap_comment}
-                                  </p>
-                                )}
+                                </h3>
+                                <span className={`shrink-0 px-2 py-1 rounded-full text-xs ${statusInfo.bgColor} ${statusInfo.color}`}>
+                                  {statusInfo.label}
+                                </span>
                               </div>
 
-                              {/* ประเภทนัดหมาย */}
-                              <div className="col-span-2">
-                                <span
-                                  className={`inline-block px-3 py-1 rounded-full text-sm ${typeInfo.bgColor} ${typeInfo.color}`}
-                                >
+                              {/* Date & Type */}
+                              <div className="flex flex-wrap items-center gap-2 mb-3">
+                                <span className="flex items-center gap-1 text-xs text-gray-600">
+                                  <FiClock size={12} />
+                                  {formatThaiDate(item.ap_datetime)}
+                                </span>
+                                <span className={`px-2 py-1 rounded-full text-xs ${typeInfo.bgColor} ${typeInfo.color}`}>
                                   {typeInfo.label}
                                 </span>
                               </div>
 
-                              {/* เวลานัด */}
-                              <div className="col-span-3 text-gray-600">
-                                {formatThaiDate(item.ap_datetime)}
-                              </div>
+                              {/* Comment/Details */}
+                              {item.ap_comment && (
+                                <p className="text-xs text-gray-500 mb-3 line-clamp-3">
+                                  {item.ap_comment}
+                                </p>
+                              )}
 
-                              {/* สถานะ */}
-                              <div className="col-span-2">
-                                <span
-                                  className={`inline-block px-3 py-1 rounded-full text-sm ${statusInfo.bgColor} ${statusInfo.color}`}
-                                >
-                                  {statusInfo.label}
-                                </span>
-                              </div>
+                              {/* TeleLink (if exists in comment) */}
+                              {item.ap_comment?.includes("TeleLink:") && (
+                                <div className="pt-3 border-t border-gray-100">
+                                  <a
+                                    href={item.ap_comment.match(/https?:\/\/[^\s]+/)?.[0] || "#"}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2 text-xs text-blue-500 hover:text-blue-600"
+                                  >
+                                    🔗 เข้าร่วม Telemedicine
+                                  </a>
+                                </div>
+                              )}
                             </div>
                           );
                         })}
                       </div>
-                    </div>
+                    </>
                   ) : (
                     <div className="flex flex-col items-center justify-center text-gray-500 mt-10">
                       <Image
@@ -438,7 +476,7 @@ export default function AppointmentPage() {
             </div>
           </div>
 
-          {/* ✅ CitizenIdSync Modal - เปิดอัตโนมัติเมื่อยังไม่ sync */}
+          {/* CitizenIdSync Modal - เปิดอัตโนมัติเมื่อยังไม่ sync */}
           <CitizenIdSync
             isOpen={showCitizenSync}
             onClose={() => setShowCitizenSync(false)}
