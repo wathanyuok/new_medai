@@ -6,6 +6,7 @@ import { FiCalendar, FiChevronDown, FiLock, FiEdit2, FiPlus, FiMapPin } from "re
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
+
 // ==================== API Configuration ====================
 const BASE_URL = process.env.NEXT_PUBLIC_APPOINT_API_URL || "https://shop.api-apsx.co";
 const LINECRM_API_URL = process.env.NEXT_PUBLIC_API_URL || "https://linecrm.api-apsx.com";
@@ -397,6 +398,8 @@ const AddressDropdown: React.FC<AddressDropdownProps> = ({
     </div>
   );
 };
+
+
 
 const TelemedicineRegisterPage: React.FC = () => {
   const router = useRouter();
@@ -1040,45 +1043,48 @@ const TelemedicineRegisterPage: React.FC = () => {
             <label className="block text-sm font-medium text-black-500 mb-1">
               วัน เดือน ปีเกิด (ค.ศ.) <span className="text-pink-500">*</span>
             </label>
-
-            <div className="relative w-full">
-              {isFlow1 ? (
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={formData.ctm_birthdate}
-                    disabled
-                    className="w-full px-4 py-3 bg-gray-100 border border-gray-200 rounded-xl text-gray-700 cursor-not-allowed pr-10"
-                  />
-                  <FiLock className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" />
+            {isFlow1 ? (
+              <div className="relative">
+                <input
+                  type="text"
+                  value={formData.ctm_birthdate}
+                  disabled
+                  className="w-full px-4 py-3 bg-gray-100 border border-gray-200 rounded-xl text-gray-700 cursor-not-allowed pr-10"
+                />
+                <FiLock className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" />
+              </div>
+            ) : (
+              <div className="relative">
+                <DatePicker
+                  wrapperClassName="w-full"
+                  popperClassName="z-50"
+                  selected={formData.ctm_birthdate ? new Date(formData.ctm_birthdate) : null}
+                  onChange={(date: Date | null) => {
+                    if (!date) {
+                      handleFormChange("ctm_birthdate", "");
+                      return;
+                    }
+                    const yyyy = date.getFullYear();
+                    const mm = String(date.getMonth() + 1).padStart(2, "0");
+                    const dd = String(date.getDate()).padStart(2, "0");
+                    handleFormChange("ctm_birthdate", `${yyyy}-${mm}-${dd}`);
+                  }}
+                  dateFormat="dd/MM/yyyy"
+                  maxDate={new Date()}
+                  minDate={new Date(1907, 0, 1)}
+                  placeholderText="เลือกวันเกิด"
+                  showYearDropdown
+                  showMonthDropdown
+                  dropdownMode="select"
+                  yearDropdownItemNumber={100}
+                  scrollableYearDropdown
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-700 focus:outline-none focus:border-blue-400 pr-12"
+                />
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                  <FiCalendar />
                 </div>
-              ) : (
-                <>
-                  <DatePicker
-                    wrapperClassName="w-full"
-                    popperClassName="z-50"
-                    selected={formData.ctm_birthdate ? new Date(formData.ctm_birthdate) : null}
-                    onChange={(date: Date | null) => {
-                      if (!date) {
-                        handleFormChange("ctm_birthdate", "");
-                        return;
-                      }
-                      const yyyy = date.getFullYear();
-                      const mm = String(date.getMonth() + 1).padStart(2, "0");
-                      const dd = String(date.getDate()).padStart(2, "0");
-                      handleFormChange("ctm_birthdate", `${yyyy}-${mm}-${dd}`);
-                    }}
-                    dateFormat="yyyy-MM-dd"
-                    maxDate={new Date()}
-                    placeholderText="เลือกวันเกิด"
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-700 focus:outline-none focus:border-blue-400 pr-12"
-                  />
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                    <FiCalendar />
-                  </div>
-                </>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* Address (House Number) */}
