@@ -508,10 +508,29 @@ const TelemedicineRegisterPage: React.FC = () => {
       // ===== Flow 2: ไม่มี HN หรือยังไม่ verify OTP =====
       console.log("Flow 2: No HN or not verified → New registration");
       setIsFlow1(false);
-      setFormData(prev => ({
-        ...prev,
-        ctm_citizen_id: storedCitizenId,
-      }));
+
+      // ✅ ดึงข้อมูลที่เคยกรอกไว้จาก localStorage
+      const savedDraft = localStorage.getItem("draftRegisterForm");
+      if (savedDraft) {
+        try {
+          const draftData = JSON.parse(savedDraft);
+          // ใช้ citizenId จาก localStorage (ที่ยืนยันแล้ว) แทนที่จาก draft
+          setFormData({
+            ...draftData,
+            ctm_citizen_id: storedCitizenId,
+          });
+        } catch (e) {
+          setFormData(prev => ({
+            ...prev,
+            ctm_citizen_id: storedCitizenId,
+          }));
+        }
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          ctm_citizen_id: storedCitizenId,
+        }));
+      }
 
       setIsInitialized(true);
       getAccessToken();
@@ -519,6 +538,20 @@ const TelemedicineRegisterPage: React.FC = () => {
 
     initPage();
   }, [router]);
+
+      // ===== Auto-save form data to localStorage =====
+    useEffect(() => {
+      // ไม่ save ถ้าเป็น Flow 1 (มี HN แล้ว)
+      if (isFlow1) return;
+      
+      // ไม่ save ถ้ายังไม่ได้ initialize
+      if (!isInitialized) return;
+
+      // Save เฉพาะเมื่อมีข้อมูลที่กรอก
+      if (formData.ctm_fname || formData.ctm_lname || formData.ctm_birthdate || formData.ctm_address) {
+        localStorage.setItem("draftRegisterForm", JSON.stringify(formData));
+      }
+    }, [formData, isFlow1, isInitialized]);
 
   // ===== handleFormChange - ป้องกัน readonly ถ้า Flow 1 =====
   const handleFormChange = (field: keyof FormData, value: string | boolean) => {
@@ -908,6 +941,8 @@ const TelemedicineRegisterPage: React.FC = () => {
       // เก็บข้อมูลไว้ใน localStorage
       localStorage.setItem("pendingCustomerData", JSON.stringify(customerData));
 
+      // ✅ ลบ draft เมื่อ submit สำเร็จ
+      localStorage.removeItem("draftRegisterForm");
       // ไปหน้าถ่ายรูปบัตรประชาชน
       router.push("/ai/telemedicine/register/capture-idcard");
     } catch (err) {
