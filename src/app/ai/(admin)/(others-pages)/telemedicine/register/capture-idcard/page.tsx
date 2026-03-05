@@ -630,6 +630,9 @@ const CaptureIDCardPage: React.FC = () => {
         // อัพเดท token ใหม่
         localStorage.setItem("token", verifyResult.data.access_token);
         localStorage.setItem("is_online_data_sync", "true");
+          // ✅ ลบ draft เมื่อลงทะเบียนสำเร็จจริงๆ
+        localStorage.removeItem("draftRegisterForm");
+        localStorage.removeItem("pendingCustomerData");
 
         // ===== Step 4: ดึงข้อมูล customer จาก linecrm =====
         console.log("Step 4: Fetching customer data from linecrm...");
@@ -860,53 +863,65 @@ const CaptureIDCardPage: React.FC = () => {
         </div>
 
         <div className="bg-white rounded-3xl shadow-lg p-6">
-          {/* Camera Preview */}
-          {isCameraOpen && (
-            <div className="relative rounded-2xl overflow-hidden mb-6 bg-black">
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-64 object-cover"
-              />
+            {/* Camera Preview - Clean without overlay */}
+            {isCameraOpen && (
+              <div className="relative rounded-2xl overflow-hidden mb-6 bg-black">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-72 object-cover"
+                />
+                
+                {/* Simple hint text only */}
+                <div className="absolute bottom-3 left-0 right-0 text-center">
+                  <span className="bg-black/60 text-white text-sm px-4 py-2 rounded-full">
+                    📸 ถือบัตรข้างใบหน้า แล้วกดถ่าย
+                  </span>
+                </div>
+              </div>
+            )}
 
-              {/* Face + ID Card Frame Guide */}
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="flex items-center gap-2">
-                  {/* Face circle */}
-                  <div className="w-24 h-28 border-2 border-dashed border-white/70 rounded-full"></div>
-                  {/* ID Card */}
-                  <div className="w-20 h-12 border-2 border-dashed border-yellow-400/80 rounded-lg"></div>
-                </div>
-              </div>
-              
-              {/* Hint text */}
-              <div className="absolute bottom-2 left-0 right-0 text-center">
-                <span className="bg-black/50 text-white text-xs px-3 py-1 rounded-full">
-                  วางใบหน้าและบัตรในกรอบ
-                </span>
-              </div>
-            </div>
-          )}
 
-          {/* Placeholder when camera is closed */}
-          {!isCameraOpen && (
-            <div className="rounded-2xl bg-gray-100 h-48 flex flex-col items-center justify-center mb-6">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-16 h-20 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center">
-                  <span className="text-2xl">👤</span>
-                </div>
-                <span className="text-gray-400 text-xl">+</span>
-                <div className="w-14 h-9 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center">
-                  <span className="text-lg">🪪</span>
+            {/* Example Image - แสดงก่อนเปิดกล้อง */}
+            {!isCameraOpen && (
+              <div className="mb-6">
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-4">
+                  <p className="text-blue-600 text-xs text-center font-medium mb-3">
+                    ✓ ตัวอย่างภาพที่ถูกต้อง
+                  </p>
+                  <div className="bg-white rounded-xl p-4 shadow-sm">
+                    <svg viewBox="0 0 280 140" className="w-full h-auto">
+                      {/* Background */}
+                      <rect width="280" height="140" fill="#f8fafc" rx="8"/>
+                      
+                      {/* Person silhouette - head */}
+                      <ellipse cx="100" cy="45" rx="28" ry="32" fill="#cbd5e1"/>
+                      
+                      {/* Person silhouette - body */}
+                      <ellipse cx="100" cy="120" rx="45" ry="40" fill="#e2e8f0"/>
+                      
+                      {/* ID Card in hand */}
+                      <g transform="translate(150, 35)">
+                        <rect width="75" height="50" rx="4" fill="#fff" stroke="#3b82f6" strokeWidth="2"/>
+                        <rect x="6" y="6" width="22" height="28" rx="2" fill="#bfdbfe"/>
+                        <rect x="32" y="10" width="38" height="5" rx="1" fill="#93c5fd"/>
+                        <rect x="32" y="19" width="30" height="4" rx="1" fill="#bfdbfe"/>
+                        <rect x="32" y="27" width="34" height="4" rx="1" fill="#bfdbfe"/>
+                      </g>
+                      
+                      {/* Checkmark */}
+                      <circle cx="250" cy="25" r="18" fill="#22c55e"/>
+                      <path d="M242 25 L248 31 L260 19" stroke="white" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                  <p className="text-blue-500 text-xs text-center mt-3">
+                    ถือบัตรข้างใบหน้า ให้เห็นชัดทั้งคู่
+                  </p>
                 </div>
               </div>
-              <p className="text-gray-400 text-sm">
-                ถ่ายรูปหน้าคู่บัตรประชาชน
-              </p>
-            </div>
-          )}
+            )}
 
           {error && (
             <p className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-lg mb-4">

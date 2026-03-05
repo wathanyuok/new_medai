@@ -941,8 +941,6 @@ const TelemedicineRegisterPage: React.FC = () => {
       // เก็บข้อมูลไว้ใน localStorage
       localStorage.setItem("pendingCustomerData", JSON.stringify(customerData));
 
-      // ✅ ลบ draft เมื่อ submit สำเร็จ
-      localStorage.removeItem("draftRegisterForm");
       // ไปหน้าถ่ายรูปบัตรประชาชน
       router.push("/ai/telemedicine/register/capture-idcard");
     } catch (err) {
